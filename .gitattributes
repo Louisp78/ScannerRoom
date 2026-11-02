@@ -1,1 +1,7 @@
 * text=auto eol=lf
+
+# Assets 3D : jamais de normalisation de fins de ligne
+*.glb binary
+*.gltf binary
+*.bin binary
+*.ply binary
