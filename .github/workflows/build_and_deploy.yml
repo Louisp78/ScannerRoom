@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run type-check
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build-only
+
+  # Deploy only after lint, typecheck and build pass, and only on a push to
+  # main. Pull requests run everything above but never deploy.
+  deploy:
+    needs: [lint, typecheck, build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Ship the source to the VPS so the image is built there. `rm: true`
+      # wipes the previous copy so deleted files don't linger in the context.
+      - name: Upload source to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: "Dockerfile,.dockerignore,nginx.conf,package.json,package-lock.json,index.html,vite.config.ts,tsconfig*.json,env.d.ts,public,src"
+          target: "~/scannerroom/src"
+          rm: true
+          overwrite: true
+
+      # The VPS native nginx (behind Cloudflare) routes
+      # scannerroom.louisplace.com -> 127.0.0.1:3001.
+      - name: Build and serve on VPS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            set -e
+            cd ~/scannerroom/src
+            docker build -t scannerroom:latest .
+            docker rm -f scannerroom 2>/dev/null || true
+            docker run -d \
+              --name scannerroom \
+              --restart always \
+              -p 127.0.0.1:3001:80 \
+              scannerroom:latest
+            docker image prune -f
+            echo "Deployment complete!"
