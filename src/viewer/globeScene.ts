@@ -54,7 +54,9 @@ export class GlobeScene {
 
     const ocean = new THREE.Mesh(
       new THREE.SphereGeometry(RADIUS, 96, 64),
-      new THREE.MeshBasicMaterial({ color: new THREE.Color(ABYSS).lerp(new THREE.Color(SCANNER), 0.12) }),
+      new THREE.MeshBasicMaterial({
+        color: new THREE.Color(ABYSS).lerp(new THREE.Color(SCANNER), 0.12),
+      }),
     )
     this.scene.add(ocean)
 
