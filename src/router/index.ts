@@ -9,6 +9,13 @@ const router = createRouter({
       name: 'home',
       component: HomeView,
     },
+    {
+      path: '/transects/:transectKey',
+      name: 'transect',
+      // Lazy: three.js and the viewer only load when a transect is opened (US-2.3).
+      component: () => import('../views/TransectView.vue'),
+      props: true,
+    },
   ],
 })
 
