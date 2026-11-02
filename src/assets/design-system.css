@@ -1,0 +1,13 @@
+/*
+ * ScannerRoom design system — single source of truth for design tokens.
+ * Every token declared here becomes a Tailwind utility (e.g. --color-abyss -> bg-abyss).
+ * See brand.md for the rationale behind each value.
+ */
+@theme {
+  /* Deep oceanic blue: depth, scientific base */
+  --color-abyss: #0a2e44;
+  /* Bright turquoise: the scanner beam, tech accent */
+  --color-scanner: #2cd3d9;
+  /* Off-white: readability and breathing room */
+  --color-foam: #f2f7f7;
+}

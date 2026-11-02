@@ -1,0 +1,8 @@
+# Heavy pipeline artifacts: reproducible from the scripts, never committed.
+transects/*.mp4
+frames/
+reconstruction/
+out/
+
+# Third-party code and its Python env (LingBot-Map MLX port, weights included).
+vendor/
