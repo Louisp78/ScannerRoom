@@ -16,6 +16,11 @@ const router = createRouter({
       component: () => import('../views/TransectView.vue'),
       props: true,
     },
+    // Local ingest tool: its endpoint only exists on the dev server
+    // (vite-plugins/ingest.ts), so the page is left out of production builds.
+    ...(import.meta.env.DEV
+      ? [{ path: '/ingest', name: 'ingest', component: () => import('../views/IngestView.vue') }]
+      : []),
   ],
 })
 
