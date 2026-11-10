@@ -100,10 +100,10 @@ onBeforeUnmount(() => {
     <div ref="host" class="absolute inset-0" />
 
     <p v-if="error" class="absolute inset-x-0 top-1/2 text-center text-foam" role="alert">
-      Impossible de charger le transect : {{ error }}
+      Could not load the transect: {{ error }}
     </p>
     <p v-else-if="!range" class="absolute inset-x-0 top-1/2 text-center text-scanner">
-      Chargement du nuage de points… {{ Math.round(progress * 100) }} %
+      Loading point cloud… {{ Math.round(progress * 100) }}%
     </p>
 
     <!-- Source video, in sync with the camera while traveling along the path. -->
@@ -115,7 +115,7 @@ onBeforeUnmount(() => {
       muted
       playsinline
       preload="auto"
-      aria-label="Vidéo du transect"
+      aria-label="Transect video"
       class="absolute top-4 right-4 w-48 rounded-lg border border-foam/20 shadow-lg sm:w-72"
       @error="videoFailed = true"
     />
@@ -128,7 +128,7 @@ onBeforeUnmount(() => {
         v-if="playback !== 'playing'"
         type="button"
         class="grid size-8 place-items-center rounded-full bg-scanner text-abyss hover:bg-foam"
-        aria-label="Lecture : suivre le plongeur"
+        aria-label="Play: follow the diver"
         @click="play"
       >
         <svg viewBox="0 0 16 16" class="ml-0.5 size-3.5" fill="currentColor" aria-hidden="true">
@@ -149,7 +149,7 @@ onBeforeUnmount(() => {
       <button
         type="button"
         class="grid size-8 place-items-center rounded-full border border-foam/40 hover:border-scanner hover:text-scanner disabled:opacity-40"
-        aria-label="Stop : revenir à la vue d'ensemble"
+        aria-label="Stop: back to the overview"
         :disabled="playback === 'stopped'"
         @click="stop"
       >
@@ -159,7 +159,7 @@ onBeforeUnmount(() => {
       </button>
 
       <label class="flex flex-1 items-center gap-3">
-        <span class="sr-only">Temps de la vidéo</span>
+        <span class="sr-only">Video time</span>
         <span class="w-10 tabular-nums">{{ formatTime(time) }}</span>
         <input
           v-model.number="time"
