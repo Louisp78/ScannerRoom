@@ -2,7 +2,8 @@
 import WorldGlobe from '@/components/WorldGlobe.vue'
 import { SITES } from '@/sites'
 
-const isDev = import.meta.env.DEV
+// The upload tool only runs on the dev server; production visitors request access instead.
+const addTransectRoute = import.meta.env.DEV ? '/ingest' : '/request-access'
 </script>
 
 <template>
@@ -43,8 +44,7 @@ const isDev = import.meta.env.DEV
             {{ SITES.length }} transects mapped
           </span>
           <RouterLink
-            v-if="isDev"
-            to="/ingest"
+            :to="addTransectRoute"
             class="rounded-full bg-scanner px-4 py-1.5 text-sm font-semibold text-abyss transition hover:shadow-[0_0_20px_rgb(44_211_217/0.6)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foam"
           >
             Add a transect

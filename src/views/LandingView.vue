@@ -368,14 +368,14 @@ onBeforeUnmount(() => showcaseObserver?.disconnect())
           Already have transect footage on a hard drive?
         </h2>
         <p class="mx-auto mt-4 max-w-xl text-foam/70">
-          Give it a second life as a 3D model the whole research community can explore. Start by
-          diving into the atlas, contributor uploads open soon.
+          Give it a second life as a 3D model the whole research community can explore. The tool is
+          free for anyone who needs it: just request access.
         </p>
         <RouterLink
-          to="/explore"
+          to="/request-access"
           class="mt-8 inline-block rounded-full bg-scanner px-7 py-3 font-semibold text-abyss shadow-[0_0_30px_rgb(44_211_217/0.35)] transition hover:shadow-[0_0_45px_rgb(44_211_217/0.6)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foam"
         >
-          Explore the atlas
+          Request access
         </RouterLink>
       </div>
     </section>
