@@ -39,6 +39,11 @@ A web application for viewing the world's coastal seabeds as an **"underwater St
 - **US-3.2** — As a user, I want an adaptive level of detail (LOD) depending on zoom, so that it is smooth from afar and precise up close.
 - **US-3.3** — As a contributor, I want to upload a geolocated transect video, so that it is reconstructed and added to the map.
 
+### 4. Accounts and access
+
+- **US-4.1** — As a contributor, I want to sign in (ORCID or Google), so that only I (or an admin) can add and edit the biome areas of the transects I added. See [us-4.1-contributor-accounts.md](./us-4.1-contributor-accounts.md).
+- **US-4.2** — As the project owner, I want the atlas, the transect viewer and the access request page to be reserved to signed-in users, so that the data is shared with known people only.
+
 ---
 
 ## MVP scope
