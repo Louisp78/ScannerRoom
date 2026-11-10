@@ -21,7 +21,12 @@ Cleaning steps, in order:
 3. Voxel downsample: one averaged point per voxel. The scale is arbitrary and
    varies between reconstructions, so the voxel edge is a fraction of the
    median depth of the kept pixels, giving the same relative detail everywhere.
+   Long transects would exceed what a browser loads comfortably, so the voxel
+   grows (coarser detail) until the cloud fits the --max-points budget.
 4. Statistical outlier removal on the downsampled cloud.
+
+Frames are processed one at a time and merged into the voxel grid as they go,
+so memory stays bounded on full-length transects (~1000 frames).
 
 Coordinates are in the first camera's frame (OpenCV convention: x right,
 y down, z forward, scale arbitrary); the viewer converts them. For portrait
@@ -47,11 +52,20 @@ parser.add_argument("--voxel", type=float, default=0.01)
 # Per-frame poses jitter (hand-held camera, 2 fps). Gaussian sigmas in seconds.
 parser.add_argument("--path-smooth", type=float, default=1.0)
 parser.add_argument("--heading-smooth", type=float, default=1.5)
+# Web budget: ~16 bytes per point in cloud.ply, so 2 M points is ~32 MB.
+parser.add_argument("--max-points", type=int, default=2_000_000)
 args = parser.parse_args()
 
 d = np.load(args.npz, allow_pickle=False)
 meta = json.loads(Path(args.meta).read_text())
+# reconstruct.py stores images as uint8, the port's create_map.py as float 0-1.
 imgs, conf = d["images"], d["depth_conf"]
+
+
+def image(k: int) -> np.ndarray:
+    """Frame k as float32 RGB in 0-1."""
+    im = imgs[k]
+    return im.astype(np.float32) / 255 if im.dtype == np.uint8 else im
 
 
 def local_contrast(img: np.ndarray) -> np.ndarray:
@@ -65,7 +79,6 @@ def water_mask(img: np.ndarray, contrast: np.ndarray) -> np.ndarray:
     return cv2.dilate(mask, np.ones((7, 7), np.uint8)).astype(bool)
 
 
-contrast = np.stack([local_contrast(im) for im in imgs])
 
 
 # The MLX port (commit a2fe95c) decodes the pose encoding as world-to-camera and
@@ -77,7 +90,7 @@ contrast = np.stack([local_contrast(im) for im in imgs])
 # 11.7 % with the port's. So rebuild the world points from depth ourselves.
 c2w = d["extrinsic_w2c"].astype(np.float64)
 K = d["intrinsic"].astype(np.float64)
-depth = d["depth"][..., 0].astype(np.float64)
+depth = d["depth"][..., 0].astype(np.float32)
 H, W = depth.shape[1:]
 u, v = np.meshgrid(np.arange(W), np.arange(H))
 confident = conf > args.conf
@@ -85,7 +98,7 @@ confident = conf > args.conf
 
 def back_project(k: int) -> np.ndarray:
     """World points (H, W, 3) of frame k from its depth and pose."""
-    z = depth[k]
+    z = depth[k].astype(np.float64)
     cam = np.stack([(u - K[k, 0, 2]) / K[k, 0, 0] * z, (v - K[k, 1, 2]) / K[k, 1, 1] * z, z], -1)
     return cam @ c2w[k, :, :3].T + c2w[k, :, 3]
 
@@ -123,7 +136,6 @@ for k in range(1, len(depth)):
     depth[k] /= scales[k]
 print(f"depth scale correction: p10 {np.percentile(scales, 10):.3f}, p90 {np.percentile(scales, 90):.3f}")
 
-world = np.stack([back_project(k) for k in range(len(depth))])
 
 # Far away the model is unsure (trained in air, never saw water haze) and its
 # confidence drops below the threshold, so the cloud stopped about twice the
@@ -139,32 +151,71 @@ world = np.stack([back_project(k) for k in range(len(depth))])
 # textured 10 % of the frame's confident surface; the bar follows each frame's
 # lighting and visibility instead of a fixed value.
 AGREE_FRAMES, AGREE_TOL, AGREE_VOTES = 3, 0.05, 3
-water = np.stack([water_mask(im, c) for im, c in zip(imgs, contrast)])
-agreeing = np.zeros_like(confident)
+water = np.stack([water_mask(image(k), local_contrast(image(k))) for k in range(len(depth))])
+# Voxel from confident pixels only, so far points do not coarsen the detail.
+median_depth = float(np.median(depth[confident & ~water]))
+voxel = args.voxel * median_depth
+
+# Voxel grid, filled frame by frame: one packed int64 key per voxel, with the
+# sums of the positions and colours that fell in it and their count.
+KEY_BITS = 21
+KEY_HALF = 1 << (KEY_BITS - 1)
+
+
+def voxel_keys(p: np.ndarray, edge: float) -> np.ndarray:
+    q = np.floor(p / edge).astype(np.int64) + KEY_HALF
+    assert q.min() >= 0 and q.max() < 1 << KEY_BITS, "cloud too large for the voxel key"
+    return (q[:, 0] << 2 * KEY_BITS) | (q[:, 1] << KEY_BITS) | q[:, 2]
+
+
+def merge(keys: np.ndarray, sums: np.ndarray, counts: np.ndarray):
+    """Collapse rows sharing a key."""
+    uniq, inv = np.unique(keys, return_inverse=True)
+    return (uniq, np.stack([np.bincount(inv, sums[:, j], len(uniq)) for j in range(6)], 1),
+            np.bincount(inv, counts, len(uniq)))
+
+
+grid = (np.empty(0, np.int64), np.empty((0, 6)), np.empty(0))
+pending, n_confident, n_agreeing, n_kept = [], 0, 0, 0
 for k in range(len(depth)):
+    world_k = back_project(k)
     votes = np.zeros((H, W), int)
     for j in range(max(0, k - AGREE_FRAMES), min(len(depth), k + AGREE_FRAMES + 1)):
         if j != k:
-            inside, x, y, z = project(world[k], j)
+            inside, x, y, z = project(world_k, j)
             with np.errstate(divide="ignore", invalid="ignore"):
                 votes += inside & (np.abs(np.log(depth[j, y, x] / z)) < AGREE_TOL)
-    textured = contrast[k] >= np.percentile(contrast[k][confident[k] & ~water[k]], 10)
-    agreeing[k] = ~confident[k] & textured & (votes >= AGREE_VOTES)
+    contrast = local_contrast(image(k))
+    surface = contrast[confident[k] & ~water[k]]
+    # A frame with no confident reef (diver looking at open water) recovers nothing.
+    textured = contrast >= np.percentile(surface, 10) if surface.size else np.zeros((H, W), bool)
+    agreeing = ~confident[k] & textured & (votes >= AGREE_VOTES)
+    keep = (confident[k] | agreeing) & ~water[k]
+    n_confident += int(confident[k].sum())
+    n_agreeing += int(agreeing.sum())
+    n_kept += int(keep.sum())
+    pts = world_k[keep]
+    pending.append((voxel_keys(pts, voxel), np.hstack([pts, image(k)[keep]]), np.ones(len(pts))))
+    if len(pending) == 32 or k == len(depth) - 1:
+        grid = merge(*(np.concatenate([g, *(p[i] for p in pending)]) for i, g in enumerate(grid)))
+        pending = []
 
-keep = (confident | agreeing) & ~water
-pts = world[keep]
-cols = imgs[keep].astype(np.float64)
-# Voxel from confident pixels only, so far points do not coarsen the detail.
-voxel = args.voxel * np.median(depth[confident & ~water])
-print(f"confident pixels {confident.mean() * 100:.1f}%, + agreeing views {agreeing.mean() * 100:.1f}%, "
-      f"after water removal {keep.mean() * 100:.1f}% -> {len(pts):,} points")
+n_pixels = depth.size
+print(f"confident pixels {n_confident / n_pixels * 100:.1f}%, + agreeing views {n_agreeing / n_pixels * 100:.1f}%, "
+      f"after water removal {n_kept / n_pixels * 100:.1f}% -> {n_kept:,} points")
+print(f"voxel {voxel:.5f} ({args.voxel} x median depth): {len(grid[0]):,} points")
 
-_, inv, counts = np.unique(np.floor(pts / voxel).astype(np.int64), axis=0,
-                           return_inverse=True, return_counts=True)
-inv = inv.ravel()
-pts = np.stack([np.bincount(inv, pts[:, j]) for j in range(3)], 1) / counts[:, None]
-cols = np.stack([np.bincount(inv, cols[:, j]) for j in range(3)], 1) / counts[:, None]
-print(f"voxel {voxel:.5f} ({args.voxel} x median depth): {len(pts):,} points")
+# Over budget: regroup the voxels into coarser ones, weighted by their counts.
+# The cloud is a surface, so the point count goes with 1 / edge^2.
+while len(grid[0]) > args.max_points:
+    voxel *= np.sqrt(len(grid[0]) / args.max_points) * 1.02
+    _, sums, counts = grid
+    grid = merge(voxel_keys(sums[:, :3] / counts[:, None], voxel), sums, counts)
+    print(f"over the {args.max_points:,} point budget: voxel {voxel:.5f} -> {len(grid[0]):,} points")
+
+_, sums, counts = grid
+pts, cols = sums[:, :3] / counts[:, None], sums[:, 3:] / counts[:, None]
+del grid, sums, counts
 
 dist, _ = cKDTree(pts).query(pts, k=9)
 mean_d = dist[:, 1:].mean(1)
@@ -199,5 +250,23 @@ times = meta["start"] + np.arange(len(cams)) / fps
     "positions": np.round(cams, 4).tolist(),
     "forwards": np.round(forwards, 4).tolist(),
     "times": np.round(times, 3).tolist(),
+    # How the 3D was built, shown in the viewer's info panel. Lengths are in
+    # scene units (arbitrary scale), the rest is relative.
+    "reconstruction": {
+        "model": "LingBot-Map (MLX, FP16)",
+        "frames": len(cams),
+        "fps": fps,
+        # Length of the source video; older sidecars predate it.
+        "videoLength": round(meta["length"], 1) if "length" in meta else None,
+        "points": len(pts),
+        "voxel": round(voxel, 6),
+        "voxelOfMedianDepth": round(voxel / median_depth, 4),
+        "confidence": args.conf,
+        "keptPixels": round(n_kept / n_pixels, 3),
+        "recoveredPixels": round(n_agreeing / n_pixels, 3),
+        "depthScale": [round(float(np.percentile(scales, q)), 3) for q in (10, 90)],
+        "pathLength": round(float(np.linalg.norm(np.diff(cams, axis=0), axis=1).sum()), 3),
+        "medianDepth": round(median_depth, 4),
+    },
 }))
 print(f"saved {out / 'cloud.ply'} ({(out / 'cloud.ply').stat().st_size / 1e6:.1f} MB) and {out / 'path.json'}")
