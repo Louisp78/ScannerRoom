@@ -31,8 +31,16 @@ ffmpeg -hide_banner -loglevel warning -stats \
   -vf "fps=$FPS" -q:v 2 \
   "$DEST/frame_%04d.jpg"
 
+# ffmpeg applies the video's rotation metadata, so phone videos come out as
+# portrait frames. LingBot-Map turns portrait frames 90 deg clockwise before
+# reconstructing; 04-export-web.sh needs to know, to stand the scene back up.
+IFS=x read -r W H < <(ffprobe -v error -select_streams v:0 -show_entries stream=width,height \
+  -of csv=p=0:s=x "$DEST/frame_0001.jpg")
+PORTRAIT=$([ "$H" -gt "$W" ] && echo true || echo false)
+
 # Sidecar next to (not inside) the frame folder, so the reconstruction only sees
 # images. 04-export-web.sh uses it to timestamp each frame in the source video.
-printf '{"video": "%s", "fps": %s, "start": %s}\n' "$KEY.mp4" "$FPS" "$START" > "$DEST.json"
+printf '{"video": "%s", "fps": %s, "start": %s, "portrait": %s}\n' \
+  "$KEY.mp4" "$FPS" "$START" "$PORTRAIT" > "$DEST.json"
 
 echo "Extracted $(ls "$DEST" | wc -l | tr -d ' ') frames to $DEST"

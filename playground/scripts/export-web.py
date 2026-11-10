@@ -23,8 +23,9 @@ Cleaning steps, in order:
    median depth of the kept pixels, giving the same relative detail everywhere.
 4. Statistical outlier removal on the downsampled cloud.
 
-Coordinates stay in the reconstruction's world frame (OpenCV convention:
-x right, y down, z forward, scale arbitrary); the viewer converts them.
+Coordinates are in the first camera's frame (OpenCV convention: x right,
+y down, z forward, scale arbitrary); the viewer converts them. For portrait
+videos that frame is first turned back upright (see "portrait frames" below).
 """
 import argparse
 import json
@@ -171,6 +172,16 @@ inlier = mean_d < mean_d.mean() + 2 * mean_d.std()
 pts, cols = pts[inlier], cols[inlier]
 print(f"outliers removed {(~inlier).sum():,} -> {len(pts):,} points")
 
+# Portrait frames: LingBot-Map turns them 90 deg clockwise before reconstructing
+# (create_map.py, any image taller than wide), so its world frame, the first
+# camera's, lies on its side: the image's up points along +x instead of -y,
+# and the viewer would show the reef and the diver's-eye view rolled by 90 deg.
+# Express everything in the upright camera's frame instead: a pixel turned
+# clockwise maps (x, y) to (-y, x), hence upright = (y, -x, z) of the model's.
+# Older sidecars predate the flag and come from landscape videos.
+UPRIGHT = np.array([[0, 1, 0], [-1, 0, 0], [0, 0, 1]]) if meta.get("portrait") else np.eye(3)
+pts = pts @ UPRIGHT.T
+
 out = Path(args.out_dir)
 out.mkdir(parents=True, exist_ok=True)
 trimesh.PointCloud(pts.astype(np.float32),
@@ -178,9 +189,9 @@ trimesh.PointCloud(pts.astype(np.float32),
 
 # Frame k of the extraction sits at START + k / FPS in the source video.
 fps = meta["fps"]
-cams = gaussian_filter1d(c2w[:, :3, 3], args.path_smooth * fps, axis=0, mode="nearest")
+cams = gaussian_filter1d(c2w[:, :3, 3] @ UPRIGHT.T, args.path_smooth * fps, axis=0, mode="nearest")
 # Optical axis (camera +z) in world coordinates: where the diver was filming.
-forwards = gaussian_filter1d(c2w[:, :3, 2], args.heading_smooth * fps, axis=0, mode="nearest")
+forwards = gaussian_filter1d(c2w[:, :3, 2] @ UPRIGHT.T, args.heading_smooth * fps, axis=0, mode="nearest")
 forwards /= np.linalg.norm(forwards, axis=1, keepdims=True)
 times = meta["start"] + np.arange(len(cams)) / fps
 (out / "path.json").write_text(json.dumps({
