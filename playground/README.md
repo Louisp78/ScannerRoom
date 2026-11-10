@@ -41,8 +41,10 @@ Extraction is configured through environment variables:
 FPS=3 START=30 DURATION=90 ./02-extract-frames.sh
 ```
 
-It also writes `frames/<key>.json` (fps and window start), which step 04 uses to
-timestamp each frame in the source video. The file sits **next to** the image
+It also writes `frames/<key>.json` (fps, window start and whether the frames are
+portrait), which step 04 uses to timestamp each frame in the source video and, for
+phone videos filmed upright, to undo the 90° turn LingBot-Map applies to portrait
+frames. The file sits **next to** the image
 folder, not inside it, so the reconstruction only sees images.
 
 ## Adding a transect from the interface (US-3.3)
