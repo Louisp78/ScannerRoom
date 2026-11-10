@@ -78,6 +78,23 @@ docker-compose.yml    local Postgres (postgis/postgis)
 
 Shared code (`src/biomes.ts`: types, IUCN catalogue, Zod schemas) is imported by both the viewer and the API.
 
+### TypeScript everywhere it fits
+
+Every new piece of code is TypeScript, with the same strictness as the front end (`strict`, `noUncheckedIndexedAccess`):
+
+- **API**: routes, middleware, auth, error handling.
+- **Database**: Drizzle schema in `api/src/db/schema.ts`; queries are typed from it, so a column change breaks the build instead of production.
+- **One-off and maintenance scripts**: the first migration importing existing `areas.json` files, assigning the existing transects to the admin, creating ingest API tokens. They run with Node 24 directly (`node script.ts`, native type stripping), no extra runner.
+- **Shared contract**: API request and response types are inferred from the Zod schemas (`z.infer`), and the viewer imports them, so both sides change together.
+- **Type-checking in CI**: `api/tsconfig.json` is added to the root project references, so the existing `npm run type-check` (`vue-tsc --build`) checks the API too.
+
+Kept as they are, because TypeScript is not the right tool there:
+
+- **Reconstruction and export** (`playground/scripts/*.py`): Python, bound to LingBot-Map, MLX and NumPy.
+- **Pipeline wrappers** (`playground/scripts/*.sh`): thin shell glue around those Python tools.
+- **Infrastructure files**: `Dockerfile`, `docker-compose.yml`, nginx config, GitHub workflow (each has its own format).
+- **Generated SQL migrations** (`api/drizzle/*.sql`): produced by `drizzle-kit` from the TypeScript schema, not written by hand.
+
 ## Data model
 
 ```
