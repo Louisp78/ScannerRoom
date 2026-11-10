@@ -1,13 +1,19 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
+import LandingView from '../views/LandingView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
-      name: 'home',
-      component: HomeView,
+      name: 'landing',
+      component: LandingView,
+    },
+    {
+      path: '/explore',
+      name: 'explore',
+      // Lazy: the globe pulls in three.js, which the landing page does not need.
+      component: () => import('../views/ExploreView.vue'),
     },
     {
       path: '/transects/:transectKey',
