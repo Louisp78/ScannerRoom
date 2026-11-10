@@ -41,8 +41,8 @@ A web application for viewing the world's coastal seabeds as an **"underwater St
 
 ### 4. Accounts and access
 
-- **US-4.1** — As a contributor, I want to sign in (ORCID or Google), so that only I (or an admin) can add and edit the biome areas of the transects I added. See [us-4.1-contributor-accounts.md](./us-4.1-contributor-accounts.md).
-- **US-4.2** — As the project owner, I want the atlas, the transect viewer and the access request page to be reserved to signed-in users, so that the data is shared with known people only.
+- **US-4.1** — As a contributor, I want to sign in (ORCID or Google), so that only I (or an admin) can add and edit the biome areas of the transects I added, and so that my name is shown in the transect viewer. See [us-4.1-contributor-accounts.md](./us-4.1-contributor-accounts.md).
+- **US-4.2** — As the project owner, I want the atlas and the transect viewer to be reserved to signed-in users, so that the data is shared with known people only.
 
 ---
 

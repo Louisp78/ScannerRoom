@@ -1,8 +1,8 @@
 # US-4.1 / US-4.2 — Contributor accounts and restricted access
 
-> **US-4.1** — As a contributor, I want to sign in, so that only I (or an admin) can add and edit the biome areas of the transects I added.
+> **US-4.1** — As a contributor, I want to sign in, so that only I (or an admin) can add and edit the biome areas of the transects I added, and so that my name is shown on them.
 >
-> **US-4.2** — As the project owner, I want the atlas, the transect viewer and the access request page to be reserved to signed-in users, so that the data is shared with known people only.
+> **US-4.2** — As the project owner, I want the atlas and the transect viewer to be reserved to signed-in users, so that the data is shared with known people only.
 
 Status: **plan**, nothing implemented yet. This branch is merged before `feat/us-2.5-biome-areas`, which is then rebased onto it (see [Impact on US-2.5](#impact-on-us-25-biome-areas)).
 
@@ -27,7 +27,8 @@ The site is a static bundle (nginx container on the VPS, rebuilt on every push t
 | Hosting | API and database on the **same VPS** as the site, for convenience | Single machine for now; the database is never exposed outside the internal docker network. |
 | Roles | `contributor` (default) and **`admin`** | Admin can edit any transect and maintain shared data. Admins are listed in the API environment as `provider:subject` entries. |
 | Custom biome types | **Removed**, not planned | They would be visible to everyone. Only the IUCN M1 catalogue is kept. |
-| Access | Atlas, viewer and request-access page require a session; the landing page stays public | See [Access control](#access-control-us-42). |
+| Access | Atlas and viewer require a session; the landing page (with its site teaser) and the request-access page stay public | See [Access control](#access-control-us-42). |
+| Attribution | The contributor's name is shown in the viewer, in the badge holding the coordinates | See [Contributor in the viewer](#contributor-in-the-viewer). |
 | API stack | **Node 24 + TypeScript + Express 5** | Largest community and integration ecosystem; see [Tech stack](#tech-stack). |
 
 ## Architecture
@@ -134,7 +135,7 @@ areas            (transect_key, data jsonb, version int, updated_at, updated_by)
 | `POST /api/auth/link/:provider` | session | Link another provider to the current user |
 | `GET /api/auth/check` | internal (nginx `auth_request`) | 204 if the session is valid, 401 otherwise |
 | `GET /api/me` | session | Current user, role, owned transect keys |
-| `GET /api/sites` | session | Site list for the atlas (replaces the bundled `sites.json`) |
+| `GET /api/transects/:key` | session (public for a showcase transect) | Transect details for the viewer, including its contributor |
 | `GET /api/transects/:key/areas` | session (public for a showcase transect) | Read areas |
 | `PUT /api/transects/:key/areas` | session + **owner or admin** | Replace areas, `If-Match: <version>` |
 | `POST /api/transects` | session or ingest API token | Register a transect and its owner (called by the local ingest) |
@@ -155,13 +156,28 @@ Security on every write:
 | `/sign-in` | public |
 | `/explore` atlas | signed in |
 | `/transects/:key` viewer | signed in, except the showcase transect embedded on the landing page |
-| `/request-access` | signed in; the form is prefilled from the profile (name, Google email, ORCID iD) |
+| `/request-access` | public, **unchanged in this MR** (see [Out of scope](#out-of-scope)) |
 | `/transects/<key>/*` data files (`cloud.ply`, `path.json`, video) | signed in, enforced by nginx `auth_request`; showcase transects stay public |
 | `/api/*` reads | signed in, except auth endpoints and showcase areas |
 
 - **Enforced by the server, not only by the router.** A Vue Router guard (`beforeEach`, `GET /api/me` cached once) redirects to `/sign-in?redirect=…` for a clean UX, but the real protection is nginx `auth_request` on the data files and session checks in the API. The SPA HTML and JS bundle stay public; they hold no data.
 - **Showcase transects** (`transects.showcase = true`) keep the landing page working: its embedded viewer loads the featured transect without a session. nginx gets the public keys from a small generated include file, or the API answers `auth/check` with 204 for showcase paths.
-- The site list moves from the bundled `src/sites.json` to `GET /api/sites`, otherwise the restricted atlas would still ship every site in the public bundle.
+- **Site summaries stay public as a teaser.** The landing page keeps showing every site's name and position, as it does today: `src/sites.json` stays in the bundle. What is protected is the data itself (point cloud, path, video, areas) and the atlas and viewer pages.
+
+## Contributor in the viewer
+
+The site badge at the top left of the transect viewer (`TransectViewer.vue`, the container holding the site name and its coordinates) gains a third line with the contributor:
+
+```
+Old Kona, site 3 — transect 2
+19.6450° N, 156.0250° W
+by Jane Doe · ORCID 0000-0002-1825-0097
+```
+
+- The name is the owner's `display_name`. When the owner linked ORCID, the iD is shown as a link to `https://orcid.org/<iD>`, which makes the attribution verifiable.
+- The data comes from `GET /api/transects/:key` (`{ key, contributor: { displayName, orcidId } }`), with the same access as the viewer: signed in, or public for a showcase transect so the landing page embed shows it too.
+- The badge is `pointer-events-none` today so it never blocks the 3D view; only the ORCID link gets pointer events back.
+- Until the transect is registered with an owner, the line is simply not shown.
 
 ## Ownership of transects
 
@@ -190,6 +206,7 @@ The storage seam of `feat/us-2.5-biome-areas` is isolated in `src/biomes.ts` (`l
 
 ## Out of scope
 
+- **Request access page**: any change to it (session-prefilled form, storing requests in the database instead of the `mailto:` handoff) is a separate MR.
 - Collaborators or shared editing of a transect.
 - Moderation workflow and history of area changes.
 - Online upload and reconstruction (needs a GPU server).
@@ -197,5 +214,4 @@ The storage seam of `feat/us-2.5-biome-areas` is isolated in `src/biomes.ts` (`l
 
 ## Open questions
 
-- **Landing page site list**: the landing page currently lists every site (name, position) from the bundle. Keep that public as a teaser, or show only the count and the showcase once the list moves behind the API?
-- **Request access handling**: keep the current `mailto:` handoff (prefilled from the profile), or store requests in the database and notify the admin?
+None at this point.
