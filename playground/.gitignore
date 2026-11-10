@@ -3,6 +3,7 @@ transects/*.mp4
 frames/
 reconstruction/
 out/
+natural-earth/
 
 # Third-party code and its Python env (LingBot-Map MLX port, weights included).
 vendor/
