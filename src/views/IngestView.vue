@@ -151,9 +151,9 @@ onBeforeUnmount(stopPolling)
     <main class="mx-auto grid w-full max-w-5xl gap-8 px-4 pb-8 md:grid-cols-2">
       <form class="flex flex-col gap-4" @submit.prevent="submit">
         <p class="text-sm text-foam/70">
-          The reconstruction runs on this Mac (MLX). Once done, the site shows up on the local
-          map; commit <code>public/transects/&lt;key&gt;/</code> and
-          <code>src/sites.json</code> to publish it.
+          The reconstruction runs on this Mac (MLX). Once done, the site shows up on the local map;
+          commit <code>public/transects/&lt;key&gt;/</code> and <code>src/sites.json</code> to
+          publish it.
         </p>
 
         <label class="flex flex-col gap-1 text-sm">
