@@ -3,6 +3,8 @@
 # and confidence for every frame, saved as one .npz archive.
 #
 # Feed-forward model, no feature matching: ~2 s per frame on an M3 Pro.
+# Runs reconstruct.py rather than the port's create_map.py, which also writes
+# several GB of unused points on full-length transects (see reconstruct.py).
 #
 # Usage: ./03-reconstruct.sh [transect-key]
 set -euo pipefail
@@ -19,7 +21,6 @@ PY="$ROOT/vendor/.venv-lingbot/bin/python"
 mkdir -p "$(dirname "$OUT")"
 # create_map.py resolves checkpoints/ relative to its own folder.
 cd "$ROOT/vendor/mlx_lingbot-map"
-# --max_frames 0: the port defaults to the first 20 frames only.
-"$PY" create_map.py --image_folder "$FRAMES" --max_frames 0 --out_map "$OUT"
+"$PY" "$ROOT/scripts/reconstruct.py" "$FRAMES" "$OUT"
 
 echo "Reconstruction saved to $OUT"

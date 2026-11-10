@@ -17,32 +17,48 @@ swimming along a coral coast, camera facing the reef), the data is public (US
 government work, no restrictions), and each file can be downloaded on its own
 over HTTP, without an account.
 
-Default video: `Old Kona Site 3 2017-02-05 Transect 2 South Leg Return full.MP4`
-(219 MB, 1440×1080, 30 fps, 2 min 32 — the lightest of the accession).
+Each site has a precise position (degrees and decimal minutes, ~2 m) in the
+accession's `Hawaii Fish Video Metadata.docx`, next to the site folders; the
+transects of a site share it. `01-fetch-transect.sh --list` prints the catalog
+used here: 12 transects over 6 sites, picked from contact sheets of the 27 files
+for clear water and full swims (10 to 12 min each, ~100 m and more along the
+tape). Site 5 is left out: murky, and its three transects sit in a single 20 min
+file. Videos are 1440×1080 at 30 fps, about 1.5 MB per second.
 
 ## Pipeline
 
 ```bash
 cd playground/scripts
 ./00-setup-lingbot.sh             # install LingBot-Map (once)
-./01-fetch-transect.sh            # download the video (--list for the others)
+./01-fetch-transect.sh            # download the video (--list for the catalog)
 ./02-extract-frames.sh            # video -> image sequence
 ./03-reconstruct.sh               # images -> camera poses + depth (LingBot-Map)
 ./04-export-web.sh                # cleaning -> public/transects/<key>/
 ```
 
+`./build-catalog.sh [key ...]` chains the four steps for catalog transects (all
+of them by default), adds each one to `src/sites.json` with its site position,
+and deletes the transect's intermediates (video, frames, `.npz`: 3 to 4 GB)
+before starting the next. Strictly one at a time: a full-length reconstruction
+uses most of the RAM of a 16-18 GB Mac. Count ~45 min per 12 min transect on an
+M3 Pro.
+
 Each step writes to its own folder (`transects/`, `frames/`, `out/`), all ignored
 by git: these artefacts are heavy and can be reproduced from the scripts. Any
 sub-folder of `frames/` is a valid key.
 
-Extraction is configured through environment variables:
+By default the **whole video** is extracted: the longer the swim, the more reef
+the 3D covers. The frame rate follows the length, to stay under LingBot-Map's
+limit of 1024 frames (kept at 1000): 2 fps up to 8 min 20, about 1.4 fps for a
+12 min transect, which still leaves a diver's slow swim well overlapped. Both can
+be forced through environment variables:
 
 ```bash
 FPS=3 START=30 DURATION=90 ./02-extract-frames.sh
 ```
 
-It also writes `frames/<key>.json` (fps, window start and whether the frames are
-portrait), which step 04 uses to timestamp each frame in the source video and, for
+It also writes `frames/<key>.json` (fps, window start, source video length and
+whether the frames are portrait), which step 04 uses to timestamp each frame in the source video and, for
 phone videos filmed upright, to undo the 90° turn LingBot-Map applies to portrait
 frames. The file sits **next to** the image
 folder, not inside it, so the reconstruction only sees images.
@@ -90,6 +106,15 @@ It is a **direct prediction**, with no feature matching or bundle adjustment:
 about 2 s per image on an M3 Pro, where classic photogrammetry often failed on
 underwater haze and blur.
 
+`03-reconstruct.sh` runs `scripts/reconstruct.py` rather than the port's
+`create_map.py`: same model, settings and streaming inference, but memory stays
+bounded on ~1000 frames. Frames are loaded as uint8 (the port goes through
+float32 copies, ~7 GB at 1000 frames), MLX's buffer cache is capped (it otherwise
+keeps every freed buffer), and the port's exports are skipped: they unproject
+every pixel with the wrong pose reading (see the trap below) into a ~90 M point
+`.ply` that nothing uses. The GPU peak, ~13 GB, is set by the 16-frame attention
+window, not by the length of the video.
+
 What this means for the data:
 
 - **Arbitrary scale.** No metric reference; distances are relative.
@@ -106,8 +131,8 @@ What this means for the data:
 
 | File | Content |
 | --- | --- |
-| `cloud.ply` | Coloured binary point cloud, ~1.4 M points (21 MB for 60 s of video, against 165 MB and 11 M points for the raw output). |
-| `path.json` | One camera position per frame and its timestamp in the video: the diver's trajectory. |
+| `cloud.ply` | Coloured binary point cloud, at most 2 M points (~32 MB) whatever the length of the transect. |
+| `path.json` | One camera position per frame and its timestamp in the video (the diver's trajectory), plus the reconstruction parameters shown in the viewer's info panel. |
 
 Before cleaning, the depth scale is **realigned frame by frame**. The model never
 saw underwater footage: when the diver rises or sinks, the depth predicted for a
@@ -143,7 +168,12 @@ Cleaning chains four filters:
 3. **Voxel grid**: one averaged point per voxel. Since the scale is arbitrary and
    differs between reconstructions, the voxel edge is a fraction `VOXEL` (0.01 by
    default) of the median depth of the confident pixels: the same relative
-   detail whatever the transect, and far points do not coarsen it.
+   detail whatever the transect, and far points do not coarsen it. A long
+   transect would exceed what a browser loads comfortably, so past `MAX_POINTS`
+   (2 M by default) the voxels are merged into coarser ones until the cloud fits;
+   the viewer sizes the points from the final voxel edge. Frames are merged into
+   the grid one at a time, so the export stays at a few GB of RAM on ~1000
+   frames.
 4. **Isolated points**: statistical removal based on the distance to the 8
    nearest neighbours.
 
