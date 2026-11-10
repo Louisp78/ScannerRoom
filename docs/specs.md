@@ -1,70 +1,70 @@
-# Cartographie sous-marine des côtes — Spécification produit
+# Underwater coastal mapping — Product specification
 
 ## Vision
 
-Une application web permettant de visualiser les fonds côtiers du globe sous forme de **"Street View sous-marin"** : une carte mondiale où chaque portion de côte scannée est explorable en 3D, en défilement continu. La donnée est capturée une seule fois (vidéo de transect), puis présentée différemment selon le public.
+A web application for viewing the world's coastal seabeds as an **"underwater Street View"**: a world map where every scanned stretch of coast can be explored in 3D, with continuous scrolling. The data is captured once (transect video), then presented differently depending on the audience.
 
 ---
 
-## Utilisateurs cibles
+## Target users
 
-| Profil | Besoin principal |
-|--------|------------------|
-| **Scientifique / chercheur** | Accéder aux modèles 3D détaillés, aux métriques (rugosité, couverture benthique), comparer l'évolution d'un site dans le temps, exporter les données brutes. |
-| **Plongeur (plongée sous-marine)** | Repérer un site avant une sortie : profondeur, relief, vie marine visible, difficulté. |
-| **Snorkeleur** | Savoir en un coup d'œil si un spot côtier vaut le détour (accessibilité, faible profondeur, intérêt visuel). |
-| **Cadre pédagogique (enseignant, médiateur, étudiant)** | Illustrer les écosystèmes marins, faire "visiter" un fond sans plonger, support de cours interactif. |
+| Profile | Main need |
+|---------|-----------|
+| **Scientist / researcher** | Access detailed 3D models and metrics (rugosity, benthic cover), compare how a site evolves over time, export the raw data. |
+| **Scuba diver** | Scout a site before a dive: depth, relief, visible marine life, difficulty. |
+| **Snorkeler** | See at a glance whether a coastal spot is worth the trip (access, shallow depth, visual interest). |
+| **Educational setting (teacher, outreach officer, student)** | Illustrate marine ecosystems, let people "visit" a seabed without diving, interactive course material. |
 
 ---
 
 ## Features & User stories
 
-### 1. Carte mondiale des côtes
+### 1. World coastline map
 
-- **US-1.1** — En tant qu'utilisateur, je veux voir une carte du monde avec les sites scannés matérialisés par des points, afin de repérer où de la donnée existe.
-- **US-1.2** — En tant qu'utilisateur, je veux cliquer sur un point pour ouvrir un aperçu léger du site (vignette, profondeur, tags de vie marine), afin de décider si je veux l'explorer.
-- **US-1.3** — En tant qu'utilisateur, je veux filtrer les sites (profondeur, type de public, présence de corail/tortue/etc.), afin de trouver ce qui correspond à mon besoin.
-- **US-1.4** — En tant qu'utilisateur, je veux que seuls les points visibles à l'écran soient chargés, afin que l'app reste fluide.
+- **US-1.1** — As a user, I want to see a world map with scanned sites shown as points, so that I can spot where data exists.
+- **US-1.2** — As a user, I want to click a point to open a light preview of the site (thumbnail, depth, marine life tags), so that I can decide whether to explore it.
+- **US-1.3** — As a user, I want to filter sites (depth, audience, presence of coral/turtles/etc.), so that I can find what matches my need.
+- **US-1.4** — As a user, I want only the points visible on screen to be loaded, so that the app stays smooth.
 
-### 2. Viewer 3D scrollable
+### 2. Scrollable 3D viewer
 
-- **US-2.1** — En tant qu'utilisateur, je veux ouvrir la reconstruction 3D d'un site et naviguer dedans, afin de visualiser le fond marin.
-- **US-2.2** — En tant qu'utilisateur, je veux avancer en défilement continu le long de la côte (comme Street View), afin d'explorer sans changer de "scène".
-- **US-2.3** — En tant qu'utilisateur, je veux que le modèle 3D lourd ne se charge qu'à la demande, afin d'éviter les temps de chargement inutiles.
-- **US-2.4** — En tant que scientifique, je veux basculer vers une vue détaillée (métriques, historique, export), afin d'exploiter la donnée scientifiquement.
+- **US-2.1** — As a user, I want to open a site's 3D reconstruction and navigate inside it, so that I can see the seabed.
+- **US-2.2** — As a user, I want to move forward along the coast with continuous scrolling (like Street View), so that I can explore without switching "scenes".
+- **US-2.3** — As a user, I want the heavy 3D model to load only on demand, so that I avoid needless loading times.
+- **US-2.4** — As a scientist, I want to switch to a detailed view (metrics, history, export), so that I can use the data scientifically.
 
-### 3. Découpage en tuiles (streaming)
+### 3. Tiling (streaming)
 
-- **US-3.1** — En tant qu'utilisateur, je veux que la scène 3D se charge par morceaux (tuiles) selon ma position virtuelle, afin de naviguer sur de longues distances sans tout télécharger.
-- **US-3.2** — En tant qu'utilisateur, je veux un niveau de détail adaptatif (LOD) selon le zoom, afin d'avoir de la fluidité de loin et de la précision de près.
-- **US-3.3** — En tant que contributeur, je veux uploader une vidéo de transect géolocalisée, afin qu'elle soit reconstruite et ajoutée à la carte.
-
----
-
-## Périmètre MVP
-
-Objectif du MVP : **valider la sensation "scroll sous-marin" sur un seul transect**, avec une carte minimale.
-
-### Inclus dans le MVP
-
-- **US-1.1** — Carte mondiale avec points des sites.
-- **US-1.2** — Aperçu léger au clic sur un point.
-- **US-2.1** — Viewer 3D d'un site.
-- **US-2.2** — Défilement le long d'une trajectoire prédéfinie (un seul transect).
-- **US-2.3** — Chargement à la demande du modèle 3D.
-
-### Hors MVP (versions ultérieures)
-
-- **US-1.3 / US-1.4** — Filtres avancés et chargement par zone.
-- **US-2.4** — Vue scientifique détaillée + export.
-- **US-3.1 / US-3.2** — Vrai système de tuiles + LOD à l'échelle planétaire.
-- **US-3.3** — Pipeline d'upload et de reconstruction automatisé.
+- **US-3.1** — As a user, I want the 3D scene to load in chunks (tiles) based on my virtual position, so that I can navigate long distances without downloading everything.
+- **US-3.2** — As a user, I want an adaptive level of detail (LOD) depending on zoom, so that it is smooth from afar and precise up close.
+- **US-3.3** — As a contributor, I want to upload a geolocated transect video, so that it is reconstructed and added to the map.
 
 ---
 
-## Notes techniques (indicatives)
+## MVP scope
 
-- **Rendu 3D** : WebGL / Three.js dans le navigateur.
-- **Méthode de reconstruction** : Gaussian Splatting privilégié pour un rendu photoréaliste haute résolution (mesh classique type Meshroom possible pour un premier jet).
-- **Streaming à terme** : format de tuiles 3D géo-indexées (ex. approche Cesium 3D Tiles) pour la navigation continue.
-- **Principe directeur** : une seule source de données brute, deux couches de présentation (grand public léger / scientifique détaillé).
+MVP goal: **validate the "underwater scroll" feel on a single transect**, with a minimal map.
+
+### In the MVP
+
+- **US-1.1** — World map with site points.
+- **US-1.2** — Light preview when clicking a point.
+- **US-2.1** — 3D viewer of a site.
+- **US-2.2** — Scrolling along a predefined path (a single transect).
+- **US-2.3** — On-demand loading of the 3D model.
+
+### Out of the MVP (later versions)
+
+- **US-1.3 / US-1.4** — Advanced filters and loading by area.
+- **US-2.4** — Detailed scientific view + export.
+- **US-3.1 / US-3.2** — Real tiling system + LOD at planetary scale.
+- **US-3.3** — Automated upload and reconstruction pipeline.
+
+---
+
+## Technical notes (indicative)
+
+- **3D rendering**: WebGL / Three.js in the browser.
+- **Reconstruction method**: Gaussian Splatting preferred for high-resolution photorealistic rendering (a classic mesh, e.g. Meshroom, is possible for a first pass).
+- **Streaming, eventually**: geo-indexed 3D tile format (e.g. a Cesium 3D Tiles approach) for continuous navigation.
+- **Guiding principle**: a single raw data source, two presentation layers (lightweight for the general public / detailed for scientists).
