@@ -59,7 +59,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
-          source: "Dockerfile,.dockerignore,nginx.conf,package.json,package-lock.json,index.html,vite.config.ts,tsconfig*.json,env.d.ts,public,src"
+          source: "Dockerfile,.dockerignore,nginx.conf,package.json,package-lock.json,index.html,vite.config.ts,vite-plugins,tsconfig*.json,env.d.ts,public,src"
           target: "~/scannerroom/src"
           rm: true
           overwrite: true
