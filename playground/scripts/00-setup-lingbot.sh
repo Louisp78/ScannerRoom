@@ -23,6 +23,14 @@ if [ ! -d "$VENDOR/mlx_lingbot-map/.git" ]; then
 fi
 git -C "$VENDOR/mlx_lingbot-map" checkout --quiet "$COMMIT"
 
+# Local fixes on top of the pinned commit. Skipped when already applied, so the
+# script stays re-runnable.
+for patch in "$ROOT"/patches/mlx_lingbot-map-*.patch; do
+  if git -C "$VENDOR/mlx_lingbot-map" apply --check "$patch" 2>/dev/null; then
+    git -C "$VENDOR/mlx_lingbot-map" apply "$patch"
+  fi
+done
+
 if [ ! -x "$VENDOR/.venv-lingbot/bin/python" ]; then
   "$PYTHON" -m venv "$VENDOR/.venv-lingbot"
 fi
