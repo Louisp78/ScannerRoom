@@ -1,19 +1,26 @@
 """Export a LingBot-Map .npz as web assets for the Vue viewer.
 
-Usage: export-web.py <reconstruction.npz> <frames-meta.json> <out-dir> [--conf 1.05] [--voxel 0.008]
+Usage: export-web.py <reconstruction.npz> <frames-meta.json> <out-dir> [--conf 1.05] [--voxel 0.01]
 
 Writes into <out-dir>:
-- cloud.ply: coloured point cloud, cleaned and downsampled to ~1 M points.
+- cloud.ply: coloured point cloud, cleaned and downsampled to ~1-2 M points.
 - path.json: per frame, the smoothed camera position, the smoothed viewing
   direction and the timestamp in the video. Smoothing is done here, in seconds
   of video, so the viewer only interpolates and works for any frame rate.
 
+Before cleaning, each frame's depth is rescaled to agree with the previous
+frames (see "depth scale correction" below).
+
 Cleaning steps, in order:
-1. Keep pixels above the depth-confidence threshold (1.0 means "no idea").
+1. Keep pixels above the depth-confidence threshold (1.0 means "no idea"),
+   plus low-confidence but textured pixels that neighbouring frames agree
+   with (far reef, not fog).
 2. Drop open-water pixels: blue-dominant and textureless. The mask is widened a
    few pixels because depth at the reef/water silhouette is unreliable and
    produces "flying" points.
-3. Voxel downsample: one averaged point per voxel.
+3. Voxel downsample: one averaged point per voxel. The scale is arbitrary and
+   varies between reconstructions, so the voxel edge is a fraction of the
+   median depth of the kept pixels, giving the same relative detail everywhere.
 4. Statistical outlier removal on the downsampled cloud.
 
 Coordinates stay in the reconstruction's world frame (OpenCV convention:
@@ -34,7 +41,8 @@ parser.add_argument("npz")
 parser.add_argument("meta")
 parser.add_argument("out_dir")
 parser.add_argument("--conf", type=float, default=1.05)
-parser.add_argument("--voxel", type=float, default=0.008)
+# Voxel edge as a fraction of the median kept depth (0.01 ~ 0.008 on site3).
+parser.add_argument("--voxel", type=float, default=0.01)
 # Per-frame poses jitter (hand-held camera, 2 fps). Gaussian sigmas in seconds.
 parser.add_argument("--path-smooth", type=float, default=1.0)
 parser.add_argument("--heading-smooth", type=float, default=1.5)
@@ -45,11 +53,18 @@ meta = json.loads(Path(args.meta).read_text())
 imgs, conf = d["images"], d["depth_conf"]
 
 
-def water_mask(img: np.ndarray) -> np.ndarray:
+def local_contrast(img: np.ndarray) -> np.ndarray:
+    """Grey-level standard deviation over a 9x9 window: how textured each pixel is."""
     gray = cv2.cvtColor((img * 255).astype(np.uint8), cv2.COLOR_RGB2GRAY).astype(np.float32)
-    local_std = np.sqrt(np.maximum(cv2.blur(gray**2, (9, 9)) - cv2.blur(gray, (9, 9)) ** 2, 0))
-    mask = ((img[..., 2] - img[..., 0] > 0.25) & (local_std < 4)).astype(np.uint8)
+    return np.sqrt(np.maximum(cv2.blur(gray**2, (9, 9)) - cv2.blur(gray, (9, 9)) ** 2, 0))
+
+
+def water_mask(img: np.ndarray, contrast: np.ndarray) -> np.ndarray:
+    mask = ((img[..., 2] - img[..., 0] > 0.25) & (contrast < 4)).astype(np.uint8)
     return cv2.dilate(mask, np.ones((7, 7), np.uint8)).astype(bool)
+
+
+contrast = np.stack([local_contrast(im) for im in imgs])
 
 
 # The MLX port (commit a2fe95c) decodes the pose encoding as world-to-camera and
@@ -64,24 +79,91 @@ K = d["intrinsic"].astype(np.float64)
 depth = d["depth"][..., 0].astype(np.float64)
 H, W = depth.shape[1:]
 u, v = np.meshgrid(np.arange(W), np.arange(H))
-world = np.empty(depth.shape + (3,))
-for k in range(len(depth)):
+confident = conf > args.conf
+
+
+def back_project(k: int) -> np.ndarray:
+    """World points (H, W, 3) of frame k from its depth and pose."""
     z = depth[k]
     cam = np.stack([(u - K[k, 0, 2]) / K[k, 0, 0] * z, (v - K[k, 1, 2]) / K[k, 1, 1] * z, z], -1)
-    world[k] = cam @ c2w[k, :, :3].T + c2w[k, :, 3]
+    return cam @ c2w[k, :, :3].T + c2w[k, :, 3]
 
-confident = conf > args.conf
-keep = confident & ~np.stack([water_mask(im) for im in imgs])
+
+def project(pts: np.ndarray, k: int):
+    """Pixel (x, y) and depth z of world points pts (..., 3) in frame k, plus an
+    inside-the-image mask; x and y are clamped to 0 outside it."""
+    q = (pts - c2w[k, :, 3]) @ c2w[k, :, :3]
+    z = q[..., 2]
+    with np.errstate(divide="ignore", invalid="ignore"):
+        x = np.round(K[k, 0, 0] * q[..., 0] / z + K[k, 0, 2])
+        y = np.round(K[k, 1, 1] * q[..., 1] / z + K[k, 1, 2])
+    inside = (z > 0) & (x >= 0) & (x < W) & (y >= 0) & (y < H)
+    return inside, np.where(inside, x, 0).astype(int), np.where(inside, y, 0).astype(int), z
+
+
+def depth_ratio(pts: np.ndarray, k: int) -> float:
+    """Median of frame k's predicted depth over the depth of pts seen from frame k."""
+    inside, x, y, z = project(pts, k)
+    ok = inside & confident[k, y, x]
+    return float(np.median(depth[k, y[ok], x[ok]] / z[ok])) if ok.sum() >= 500 else 1.0
+
+
+# The model was never trained underwater: when the diver rises or sinks, each
+# frame's depth scale disagrees with the predicted camera motion (up to +-25 %
+# between frames 2 apart on tab-south), so every frame lays the seabed at a
+# different height and the cloud shows stacked layers. Keep the poses and
+# rescale each frame's depth so it agrees with the previous, already corrected,
+# frames: on tab-south the frame-to-frame depth error drops from ~10 % to ~4 %.
+SCALE_REF = 3
+scales = np.ones(len(depth))
+for k in range(1, len(depth)):
+    ref = np.concatenate([back_project(j)[confident[j]][::4] for j in range(max(0, k - SCALE_REF), k)])
+    scales[k] = depth_ratio(ref, k)
+    depth[k] /= scales[k]
+print(f"depth scale correction: p10 {np.percentile(scales, 10):.3f}, p90 {np.percentile(scales, 90):.3f}")
+
+world = np.stack([back_project(k) for k in range(len(depth))])
+
+# Far away the model is unsure (trained in air, never saw water haze) and its
+# confidence drops below the threshold, so the cloud stopped about twice the
+# median depth away. A low-confidence pixel is still kept when its neighbouring
+# frames agree with it: projected into frames k-3..k+3, its depth matches
+# theirs within 5 % in at least 3 of them (multi-view geometric consistency).
+# Points checked against frames +-5, not used for the vote, are about twice
+# less accurate than confident ones: fine for distant reef, not for close-up.
+# Agreement only proves something where there is texture to match: in murky
+# water the model predicts the fog as a smooth wall that every frame "agrees"
+# with (local contrast 1-8 grey levels, against 20-27 for distant reef on
+# tab-south). So a recovered pixel must be at least as textured as the least
+# textured 10 % of the frame's confident surface; the bar follows each frame's
+# lighting and visibility instead of a fixed value.
+AGREE_FRAMES, AGREE_TOL, AGREE_VOTES = 3, 0.05, 3
+water = np.stack([water_mask(im, c) for im, c in zip(imgs, contrast)])
+agreeing = np.zeros_like(confident)
+for k in range(len(depth)):
+    votes = np.zeros((H, W), int)
+    for j in range(max(0, k - AGREE_FRAMES), min(len(depth), k + AGREE_FRAMES + 1)):
+        if j != k:
+            inside, x, y, z = project(world[k], j)
+            with np.errstate(divide="ignore", invalid="ignore"):
+                votes += inside & (np.abs(np.log(depth[j, y, x] / z)) < AGREE_TOL)
+    textured = contrast[k] >= np.percentile(contrast[k][confident[k] & ~water[k]], 10)
+    agreeing[k] = ~confident[k] & textured & (votes >= AGREE_VOTES)
+
+keep = (confident | agreeing) & ~water
 pts = world[keep]
 cols = imgs[keep].astype(np.float64)
-print(f"confident pixels {confident.mean() * 100:.1f}%, after water removal {keep.mean() * 100:.1f}% -> {len(pts):,} points")
+# Voxel from confident pixels only, so far points do not coarsen the detail.
+voxel = args.voxel * np.median(depth[confident & ~water])
+print(f"confident pixels {confident.mean() * 100:.1f}%, + agreeing views {agreeing.mean() * 100:.1f}%, "
+      f"after water removal {keep.mean() * 100:.1f}% -> {len(pts):,} points")
 
-_, inv, counts = np.unique(np.floor(pts / args.voxel).astype(np.int64), axis=0,
+_, inv, counts = np.unique(np.floor(pts / voxel).astype(np.int64), axis=0,
                            return_inverse=True, return_counts=True)
 inv = inv.ravel()
 pts = np.stack([np.bincount(inv, pts[:, j]) for j in range(3)], 1) / counts[:, None]
 cols = np.stack([np.bincount(inv, cols[:, j]) for j in range(3)], 1) / counts[:, None]
-print(f"voxel {args.voxel}: {len(pts):,} points")
+print(f"voxel {voxel:.5f} ({args.voxel} x median depth): {len(pts):,} points")
 
 dist, _ = cKDTree(pts).query(pts, k=9)
 mean_d = dist[:, 1:].mean(1)
