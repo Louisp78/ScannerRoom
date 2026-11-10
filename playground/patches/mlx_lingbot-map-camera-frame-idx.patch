@@ -1,0 +1,12 @@
+diff --git a/lingbot_map_mlx/heads/camera_head.py b/lingbot_map_mlx/heads/camera_head.py
+index 2f19730..0ff238c 100644
+--- a/lingbot_map_mlx/heads/camera_head.py
++++ b/lingbot_map_mlx/heads/camera_head.py
+@@ -288,7 +288,4 @@ class CameraCausalHead(nn.Module):
+             )
+             pred_pose_enc_list.append(activated_pose)
+ 
+-        if self.kv_cache is not None:
+-            self.frame_idx += S
+-
+         return pred_pose_enc_list

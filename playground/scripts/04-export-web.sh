@@ -4,7 +4,7 @@
 # web-sized copy of the video, shown in a small window during the traveling.
 #
 # Usage: ./04-export-web.sh [transect-key]
-# Env:   CONF (default 1.05, depth-confidence threshold), VOXEL (default 0.008),
+# Env:   CONF (default 1.05, depth-confidence threshold), VOXEL (default 0.01, fraction of median depth),
 #        PATH_SMOOTH / HEADING_SMOOTH (default 1.0 / 1.5, seconds of video)
 set -euo pipefail
 
@@ -21,7 +21,7 @@ PY="$ROOT/vendor/.venv-lingbot/bin/python"
 [ -s "$META" ] || { echo "Missing $META — rerun 02-extract-frames.sh." >&2; exit 1; }
 
 "$PY" -I "$ROOT/scripts/export-web.py" "$SRC" "$META" "$DEST" \
-  --conf "${CONF:-1.05}" --voxel "${VOXEL:-0.008}" \
+  --conf "${CONF:-1.05}" --voxel "${VOXEL:-0.01}" \
   --path-smooth "${PATH_SMOOTH:-1.0}" --heading-smooth "${HEADING_SMOOTH:-1.5}"
 
 # Same timeline as the source (path.json times stay valid), small and muted:
