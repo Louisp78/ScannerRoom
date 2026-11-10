@@ -60,7 +60,7 @@ Browser ──► Cloudflare ──► VPS nginx (native)
 | Validation | Zod | One `Area` schema shared by the API and the viewer, replacing the hand-written checks of `vite-plugins/areas.ts`. |
 | Tests | Vitest + Supertest | Supertest drives the Express app in-process. |
 
-Rejected: **NestJS** (modules, dependency injection and decorators are overhead for about ten endpoints, and `class-validator` DTOs do not share with the Vue front end), **Hono** and **Fastify** (smaller community than Express), **Better Auth / Auth.js** (impose their own schema and session model, harder to fit ORCID linking and nginx `auth_request`), **Supabase / PocketBase** (heavy self-hosting, or SQLite).
+Rejected: **NestJS** (modules, dependency injection and decorators are overhead for about ten endpoints, and `class-validator` DTOs do not share with the Vue front end), **Hono** and **Fastify** (smaller community than Express), **Better Auth / Auth.js** (impose their own schema and session model, harder to fit ORCID linking and nginx `auth_request`), **Supabase / PocketBase** (heavy self-hosting, or SQLite), **Prisma** (the best-known ORM, but its schema lives in a separate `.prisma` language and PostGIS columns are unsupported, so every spatial query would be raw SQL; Drizzle is TypeScript-first, supports PostGIS `geometry` columns, and now has the larger npm usage).
 
 Layout:
 
