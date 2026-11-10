@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { formatLatLon, type Site } from '@/sites'
 import { formatTime, TransectScene } from '@/viewer/transectScene'
 
 const props = defineProps<{
   /** Folder under public/ holding cloud.ply and path.json. */
   baseUrl: string
+  /** Map entry of the transect, shown as a name + coordinates badge when known. */
+  site?: Site
+  /** Shown inside a scrolling page: see TransectScene's `embedded` option. */
+  embedded?: boolean
 }>()
 
 const host = useTemplateRef<HTMLDivElement>('host')
@@ -27,7 +32,7 @@ let frameRequest = 0
 let lastTick = 0
 
 onMounted(async () => {
-  scene = new TransectScene(host.value!)
+  scene = new TransectScene(host.value!, { embedded: props.embedded })
   try {
     const loaded = await scene.load(props.baseUrl, (r) => (progress.value = r))
     range.value = loaded.range
@@ -99,6 +104,18 @@ onBeforeUnmount(() => {
   <div class="relative h-full w-full overflow-hidden">
     <div ref="host" class="absolute inset-0" />
 
+    <!-- Top-left cluster: page-provided actions (e.g. back to the atlas), then the site badge. -->
+    <div class="absolute top-4 left-4 flex max-w-[calc(100%-2rem)] items-stretch gap-2">
+      <slot name="actions" />
+      <div
+        v-if="site"
+        class="pointer-events-none flex min-w-0 flex-col justify-center gap-1 rounded-xl border border-foam/10 bg-abyss/70 px-3 py-2 backdrop-blur"
+      >
+        <span class="truncate text-sm font-semibold">{{ site.name }}</span>
+        <span class="font-mono text-[11px] text-scanner">{{ formatLatLon(site) }}</span>
+      </div>
+    </div>
+
     <p v-if="error" class="absolute inset-x-0 top-1/2 text-center text-foam" role="alert">
       Could not load the transect: {{ error }}
     </p>
@@ -127,7 +144,7 @@ onBeforeUnmount(() => {
       <button
         v-if="playback !== 'playing'"
         type="button"
-        class="grid size-8 place-items-center rounded-full bg-scanner text-abyss hover:bg-foam"
+        class="grid size-8 shrink-0 place-items-center rounded-full bg-scanner text-abyss hover:bg-foam"
         aria-label="Play: follow the diver"
         @click="play"
       >
@@ -138,7 +155,7 @@ onBeforeUnmount(() => {
       <button
         v-else
         type="button"
-        class="grid size-8 place-items-center rounded-full bg-scanner text-abyss hover:bg-foam"
+        class="grid size-8 shrink-0 place-items-center rounded-full bg-scanner text-abyss hover:bg-foam"
         aria-label="Pause"
         @click="pause"
       >
@@ -148,7 +165,7 @@ onBeforeUnmount(() => {
       </button>
       <button
         type="button"
-        class="grid size-8 place-items-center rounded-full border border-foam/40 hover:border-scanner hover:text-scanner disabled:opacity-40"
+        class="grid size-8 shrink-0 place-items-center rounded-full border border-foam/40 hover:border-scanner hover:text-scanner disabled:opacity-40"
         aria-label="Stop: back to the overview"
         :disabled="playback === 'stopped'"
         @click="stop"
