@@ -1,13 +1,19 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
+import LandingView from '../views/LandingView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
-      name: 'home',
-      component: HomeView,
+      name: 'landing',
+      component: LandingView,
+    },
+    {
+      path: '/explore',
+      name: 'explore',
+      // Lazy: the globe pulls in three.js, which the landing page does not need.
+      component: () => import('../views/ExploreView.vue'),
     },
     {
       path: '/transects/:transectKey',
@@ -16,8 +22,14 @@ const router = createRouter({
       component: () => import('../views/TransectView.vue'),
       props: true,
     },
+    {
+      path: '/request-access',
+      name: 'request-access',
+      component: () => import('../views/RequestAccessView.vue'),
+    },
     // Local ingest tool: its endpoint only exists on the dev server
-    // (vite-plugins/ingest.ts), so the page is left out of production builds.
+    // (vite-plugins/ingest.ts), so the page is left out of production builds;
+    // there, "Add a transect" leads to the access request page instead.
     ...(import.meta.env.DEV
       ? [{ path: '/ingest', name: 'ingest', component: () => import('../views/IngestView.vue') }]
       : []),

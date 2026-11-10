@@ -58,7 +58,15 @@ export class TransectScene {
   /** Orbit view saved when following starts, restored when it ends. */
   private overview?: { position: THREE.Vector3; target: THREE.Vector3 }
 
-  constructor(private readonly host: HTMLElement) {
+  /**
+   * `embedded`: the viewer sits inside a scrolling page (e.g. the landing
+   * page). The wheel and one-finger swipes are left to the page instead of
+   * zooming/orbiting.
+   */
+  constructor(
+    private readonly host: HTMLElement,
+    { embedded = false }: { embedded?: boolean } = {},
+  ) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true })
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     host.append(this.renderer.domElement)
@@ -74,6 +82,16 @@ export class TransectScene {
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)
     this.controls.enableDamping = true
+    // The overview slowly turns to show the relief, until the user takes over.
+    this.controls.autoRotate = !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    this.controls.autoRotateSpeed = 0.6
+    this.controls.addEventListener('start', () => (this.controls.autoRotate = false))
+    if (embedded) {
+      this.controls.enableZoom = false
+      // One finger scrolls the page, two fingers orbit and pinch-zoom.
+      this.controls.touches = { ONE: null, TWO: THREE.TOUCH.DOLLY_ROTATE }
+      this.renderer.domElement.style.touchAction = 'pan-y'
+    }
 
     this.diverLabel = new CSS2DObject(makeLabel('', true))
     this.diver.add(this.diverLabel)
