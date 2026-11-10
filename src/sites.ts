@@ -15,3 +15,10 @@ export interface Site {
 // accession 0172858 only gives a dataset-wide bounding box (west coast of Hawaii
 // Island), not per-site coordinates, so it sits off the Old Kona Airport shoreline.
 export const SITES: Site[] = sites
+
+/** Hemisphere-suffixed coordinates, e.g. "19.645° N · 156.025° W". */
+export function formatLatLon({ lat, lon }: Pick<Site, 'lat' | 'lon'>): string {
+  const format = (value: number, pos: string, neg: string) =>
+    `${Math.abs(value).toFixed(3)}° ${value >= 0 ? pos : neg}`
+  return `${format(lat, 'N', 'S')} · ${format(lon, 'E', 'W')}`
+}
