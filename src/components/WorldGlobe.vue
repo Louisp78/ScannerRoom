@@ -16,7 +16,7 @@ function createPin(transectKey: string, name: string): HTMLAnchorElement {
   const link = document.createElement('a')
   link.href = router.resolve(to).href
   link.title = name
-  link.setAttribute('aria-label', `Ouvrir ${name}`)
+  link.setAttribute('aria-label', `Open ${name}`)
   // The link is positioned by CSS2DRenderer, which rewrites its `transform`
   // every frame: it must never be transitioned, or the pin lags behind the
   // globe. Hover feedback lives on the inner dot instead. The link is also
@@ -41,7 +41,7 @@ onMounted(async () => {
   for (const site of SITES) scene.addPin(site.lat, site.lon, createPin(site.transectKey, site.name))
   if (SITES[0]) scene.lookAt(SITES[0].lat, SITES[0].lon)
   try {
-    await scene.loadCoastlines('/geo/coastline-110m.geojson')
+    await scene.loadBathymetry('/geo/bathymetry.png')
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
   }
@@ -54,7 +54,7 @@ onBeforeUnmount(() => scene?.dispose())
   <div class="relative h-full w-full overflow-hidden">
     <div ref="host" class="absolute inset-0" />
     <p v-if="error" class="absolute inset-x-0 bottom-4 text-center text-foam" role="alert">
-      Impossible de charger les côtes : {{ error }}
+      Could not load the globe: {{ error }}
     </p>
   </div>
 </template>
