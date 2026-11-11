@@ -70,5 +70,11 @@
     "name": "Mahukona, site 6 — transect 2",
     "lat": 20.183383,
     "lon": -155.902067
+  },
+  {
+    "transectKey": "site7-transect2",
+    "name": "Mahukona, site 7 — transect 2",
+    "lat": 20.18405,
+    "lon": -155.901517
   }
 ]
