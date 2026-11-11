@@ -3,6 +3,7 @@ import { createProviderStrategies } from './auth/passport.ts'
 import { createUserStore } from './auth/users.ts'
 import { loadConfig } from './config.ts'
 import { connect, runMigrations } from './db/client.ts'
+import { createTransectStore } from './transects/store.ts'
 
 const config = loadConfig()
 const { pool, db } = connect(config.databaseUrl)
@@ -12,7 +13,13 @@ const strategies = await createProviderStrategies(config, users)
 const providers = strategies.map((s) => s.name)
 if (!providers.length) console.warn('No sign-in provider configured (ORCID_* / GOOGLE_* unset).')
 
-const server = createApp({ config, db, pool, users, strategies }).listen(config.port, () => {
+const server = createApp({
+  config,
+  pool,
+  users,
+  transects: createTransectStore(db),
+  strategies,
+}).listen(config.port, () => {
   console.log(`API listening on :${config.port}, providers: ${providers.join(', ') || 'none'}`)
 })
 

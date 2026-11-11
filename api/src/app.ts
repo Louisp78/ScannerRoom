@@ -5,15 +5,13 @@ import session from 'express-session'
 import helmet from 'helmet'
 import type pg from 'pg'
 import type { Config } from './config.ts'
-import { desc, eq } from 'drizzle-orm'
 import type { OwnTransectsResponse, UsersResponse } from './contract.ts'
-import type { Db } from './db/client.ts'
-import { transects as transectsTable, users as usersTable } from './db/schema.ts'
 import { csrfCheck, HttpError, requireAdmin } from './auth/guards.ts'
 import { createAuthenticator, type ProviderStrategy } from './auth/passport.ts'
 import { authRouter } from './auth/routes.ts'
 import type { UserStore } from './auth/users.ts'
-import { transectsRouter } from './routes/transects.ts'
+import { transectsRouter } from './transects/routes.ts'
+import type { TransectStore } from './transects/store.ts'
 
 /**
  * Session lifetime, counted from sign-in. Not extended on activity: nginx asks
@@ -24,15 +22,22 @@ const SESSION_MAX_AGE_MS = 30 * 24 * 3600 * 1000
 
 export interface AppDeps {
   config: Config
-  db: Db
   pool: pg.Pool
   users: UserStore
+  transects: TransectStore
   strategies: readonly ProviderStrategy[]
   /** Test-only hook, mounted after sessions and before the routes. */
   beforeRoutes?: (app: Express) => void
 }
 
-export function createApp({ config, db, pool, users, strategies, beforeRoutes }: AppDeps): Express {
+export function createApp({
+  config,
+  pool,
+  users,
+  transects,
+  strategies,
+  beforeRoutes,
+}: AppDeps): Express {
   const app = express()
   app.set('trust proxy', config.trustProxyHops)
   app.disable('x-powered-by')
@@ -63,8 +68,6 @@ export function createApp({ config, db, pool, users, strategies, beforeRoutes }:
   app.use(auth.session())
   app.use('/api', csrfCheck(config.publicUrl))
   beforeRoutes?.(app)
-
-  const transects = transectsRouter(db)
 
   /**
    * nginx `auth_request` target guarding the transect data files
@@ -97,34 +100,15 @@ export function createApp({ config, db, pool, users, strategies, beforeRoutes }:
   /** The transects credited to the signed-in user, for their profile page. */
   app.get('/api/me/transects', async (req, res) => {
     if (!req.user) throw new HttpError(401, 'Sign in required.')
-    const rows = await db
-      .select({
-        key: transectsTable.key,
-        showcase: transectsTable.showcase,
-        createdAt: transectsTable.createdAt,
-      })
-      .from(transectsTable)
-      .where(eq(transectsTable.ownerId, req.user.id))
-      .orderBy(desc(transectsTable.createdAt), transectsTable.key)
-    const body: OwnTransectsResponse = {
-      transects: rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })),
-    }
+    const body: OwnTransectsResponse = { transects: await transects.listOwnedBy(req.user.id) }
     res.json(body)
   })
   /** Everyone who signed in at least once: the choices when an admin reassigns a transect. */
   app.get('/api/users', requireAdmin, async (_req, res) => {
-    const list = await db
-      .select({
-        id: usersTable.id,
-        displayName: usersTable.displayName,
-        orcidId: usersTable.orcidId,
-      })
-      .from(usersTable)
-      .orderBy(usersTable.displayName, usersTable.id)
-    const body: UsersResponse = { users: list }
+    const body: UsersResponse = { users: await users.list() }
     res.json(body)
   })
-  app.use('/api/transects', transects.router)
+  app.use('/api/transects', transectsRouter(transects, users))
 
   app.use('/api', (_req, _res, next) => next(new HttpError(404, 'Not found.')))
   const onError: ErrorRequestHandler = (err, _req, res, _next) => {
