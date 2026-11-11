@@ -418,6 +418,11 @@ onBeforeUnmount(() => showcaseObserver?.disconnect())
     >
       <span class="font-semibold text-scanner">ScannerRoom</span>
       <span>Explore the coast, one dive at a time.</span>
+      <nav aria-label="Legal" class="flex gap-4">
+        <RouterLink to="/legal#terms" class="hover:text-scanner">Terms</RouterLink>
+        <RouterLink to="/legal#privacy" class="hover:text-scanner">Privacy</RouterLink>
+        <RouterLink to="/legal#notice" class="hover:text-scanner">Legal notice</RouterLink>
+      </nav>
     </footer>
   </div>
 </template>
