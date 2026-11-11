@@ -5,3 +5,9 @@ playground
 .github
 .claude
 *.local
+docker-compose.yml
+# The API has its own image (api/Dockerfile). The site build only needs the
+# shared response types and the tsconfig the root project references.
+api/**
+!api/tsconfig.json
+!api/src/contract.ts
