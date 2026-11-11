@@ -11,9 +11,9 @@ export interface Site {
 }
 
 // The list lives in sites.json so that the local ingest tool (vite-plugins/ingest.ts)
-// can append to it. site3-transect2-south-return is placed approximately: NOAA
-// accession 0172858 only gives a dataset-wide bounding box (west coast of Hawaii
-// Island), not per-site coordinates, so it sits off the Old Kona Airport shoreline.
+// and playground/scripts/build-catalog.sh can append to it. NOAA transects are
+// placed at their site's position from the accession metadata (see
+// playground/README.md): the transects of a site share it.
 export const SITES: Site[] = sites
 
 /** Hemisphere-suffixed coordinates, e.g. "19.645° N · 156.025° W". */
