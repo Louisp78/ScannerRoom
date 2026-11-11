@@ -136,13 +136,25 @@ What this means for the data:
 
 Before cleaning, the depth scale is **realigned frame by frame**. The model never
 saw underwater footage: when the diver rises or sinks, the depth predicted for a
-frame no longer matches the predicted camera motion (up to ±25 % between nearby
-frames on `tab-south`), and each frame lays the seabed at a different height —
-hence stacked "layers" in the cloud. The poses are kept and each frame is
-rescaled to the 3 previous (already corrected) frames, using the median ratio
-between predicted and reprojected depth. No tuning involved: on `tab-south`, the
-depth error between frames drops from about 10 % to 4 %; on `site3`, already
-consistent, the correction stays small (p10–p90: 0.94–1.04).
+frame can disagree with its neighbours' (up to ±25 % between nearby frames on
+`tab-south`), and each frame lays the seabed at a different height — hence
+stacked "layers" in the cloud. The poses are kept; every pair of frames up to 8
+apart measures how much their depths disagree (median ratio of one frame's
+depth over the other's reprojected into it), and a least-squares solve finds the
+per-frame scales that best explain these disagreements, with a weak pull towards
+the model's own scale.
+
+That pull is what keeps long transects sound. The first version rescaled each
+frame against the already rescaled previous ones; on a 1000-frame transect the
+chain ran away (some frames ×500 deeper), because inflating depth against
+unscaled camera moves makes frames agree trivially. Median depth error between
+frames 2 and 8 apart, before → after:
+
+| Transect | Frames | Before | After | Scales p10–p90 |
+| --- | --- | --- | --- | --- |
+| `tab-south` | 111 | 7.8 / 9.8 % | 3.3 / 7.1 % | 0.81–1.22 |
+| `site3` 60 s | 120 | 2.2 / 5.4 % | 1.8 / 3.5 % | 0.95–1.05 |
+| `site3-transect3` | 1000 | 7.4 / 19.0 % | 6.1 / 13.5 % | 0.70–1.49 |
 
 Cleaning chains four filters:
 

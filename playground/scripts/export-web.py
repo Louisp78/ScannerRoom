@@ -8,7 +8,7 @@ Writes into <out-dir>:
   direction and the timestamp in the video. Smoothing is done here, in seconds
   of video, so the viewer only interpolates and works for any frame rate.
 
-Before cleaning, each frame's depth is rescaled to agree with the previous
+Before cleaning, each frame's depth is rescaled to agree with its neighbouring
 frames (see "depth scale correction" below).
 
 Cleaning steps, in order:
@@ -40,6 +40,8 @@ import cv2
 import numpy as np
 import trimesh
 from scipy.ndimage import gaussian_filter1d
+from scipy.sparse import coo_matrix, identity
+from scipy.sparse.linalg import spsolve
 from scipy.spatial import cKDTree
 
 parser = argparse.ArgumentParser()
@@ -115,25 +117,50 @@ def project(pts: np.ndarray, k: int):
     return inside, np.where(inside, x, 0).astype(int), np.where(inside, y, 0).astype(int), z
 
 
-def depth_ratio(pts: np.ndarray, k: int) -> float:
-    """Median of frame k's predicted depth over the depth of pts seen from frame k."""
+def log_depth_ratio(pts: np.ndarray, k: int) -> float | None:
+    """Median log of frame k's predicted depth over the depth of pts seen from
+    frame k; None when they overlap too little to tell."""
     inside, x, y, z = project(pts, k)
     ok = inside & confident[k, y, x]
-    return float(np.median(depth[k, y[ok], x[ok]] / z[ok])) if ok.sum() >= 500 else 1.0
+    return float(np.median(np.log(depth[k, y[ok], x[ok]] / z[ok]))) if ok.sum() >= 500 else None
 
 
-# The model was never trained underwater: when the diver rises or sinks, each
-# frame's depth scale disagrees with the predicted camera motion (up to +-25 %
-# between frames 2 apart on tab-south), so every frame lays the seabed at a
-# different height and the cloud shows stacked layers. Keep the poses and
-# rescale each frame's depth so it agrees with the previous, already corrected,
-# frames: on tab-south the frame-to-frame depth error drops from ~10 % to ~4 %.
-SCALE_REF = 3
-scales = np.ones(len(depth))
-for k in range(1, len(depth)):
-    ref = np.concatenate([back_project(j)[confident[j]][::4] for j in range(max(0, k - SCALE_REF), k)])
-    scales[k] = depth_ratio(ref, k)
-    depth[k] /= scales[k]
+# The model was never trained underwater: when the diver rises or sinks, a
+# frame's depth scale can disagree with its neighbours' (up to +-25 % between
+# frames 2 apart on tab-south), so every frame lays the seabed at a different
+# height and the cloud shows stacked layers. Keep the poses and rescale each
+# frame's depth: every pair of frames up to SCALE_PAIRS apart measures how much
+# their predicted depths disagree (median log ratio of one frame's depth over
+# the other's reprojected into it), and a least-squares solve finds the
+# per-frame log scales c that best explain these differences (c_k - c_j), with
+# a weak pull towards the model's own scale (SCALE_PRIOR * c_k^2).
+# The pull matters: an earlier version rescaled each frame against the already
+# rescaled previous ones, and on long transects that chain ran away (depth x500
+# on some frames after 1000 frames: inflating depth against unscaled camera
+# moves makes frames agree trivially). Measured on tab-south / site3 (60 s) /
+# site3 transect 3 (1000 frames), median depth error between frames 2 and 8
+# apart: none 7.8/9.8, 2.2/5.4, 7.4/19.0 %; this 3.3/7.1, 1.8/3.5, 6.1/13.5 %,
+# scales p10-p90 within 0.70-1.49 and the median depth kept (x1.00-1.02).
+SCALE_PAIRS, SCALE_PRIOR = 8, 0.3
+pairs = []
+window = {}  # confident world points of the last SCALE_PAIRS frames, subsampled
+for k in range(len(depth)):
+    for j, pts in window.items():
+        m = log_depth_ratio(pts, k)
+        if m is not None:
+            pairs.append((k, j, m))
+    window[k] = back_project(k)[confident[k]][::4]
+    window.pop(k - SCALE_PAIRS, None)
+S = len(depth)
+if pairs:
+    pk, pj, pm = (np.array(c) for c in zip(*pairs))
+    n = len(pm)
+    A = coo_matrix((np.r_[np.ones(n), -np.ones(n)], (np.r_[np.arange(n), np.arange(n)], np.r_[pk, pj])),
+                   shape=(n, S)).tocsr()
+    scales = np.exp(spsolve((A.T @ A + SCALE_PRIOR * identity(S)).tocsc(), A.T @ pm))
+else:
+    scales = np.ones(S)
+depth /= scales[:, None, None].astype(np.float32)
 print(f"depth scale correction: p10 {np.percentile(scales, 10):.3f}, p90 {np.percentile(scales, 90):.3f}")
 
 
