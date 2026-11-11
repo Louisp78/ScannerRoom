@@ -139,17 +139,24 @@ describe('PUT /api/transects/:key/contributor', () => {
 })
 
 describe('GET /api/auth/check (nginx auth_request)', () => {
-  const check = (uri: string) => request(ctx.app).get('/api/auth/check').set('X-Original-URI', uri)
+  const check = (key: string) => request(ctx.app).get('/api/auth/check').set('X-Transect-Key', key)
 
   it('lets anyone read showcase data files', async () => {
-    await check('/transects/kona/cloud.ply').expect(204)
+    await check('kona').expect(204)
   })
 
   it('refuses private data files to anonymous visitors', async () => {
-    await check('/transects/private-reef/cloud.ply').expect(401)
-    await check('/transects/kona-fake/cloud.ply').expect(401)
-    await check('/transects/%E0%A4%A/cloud.ply').expect(401)
+    await check('private-reef').expect(401)
+    await check('kona-fake').expect(401)
     await check('').expect(401)
+    await request(ctx.app).get('/api/auth/check').expect(401)
+  })
+
+  it('ignores the raw request URI (dot segments must not reach the check)', async () => {
+    await request(ctx.app)
+      .get('/api/auth/check')
+      .set('X-Original-URI', '/transects/kona/../private-reef/cloud.ply')
+      .expect(401)
   })
 
   it('lets signed-in users read any data file', async () => {
@@ -157,7 +164,7 @@ describe('GET /api/auth/check (nginx auth_request)', () => {
       await ctx.agentFor(other)
     )
       .get('/api/auth/check')
-      .set('X-Original-URI', '/transects/private-reef/cloud.ply')
+      .set('X-Transect-Key', 'private-reef')
       .expect(204)
   })
 })
