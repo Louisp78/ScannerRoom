@@ -34,5 +34,11 @@
     "name": "Old Kona, site 4 — transect 2",
     "lat": 19.644736,
     "lon": -156.016117
+  },
+  {
+    "transectKey": "site1-transect1",
+    "name": "Puakō, site 1 — transect 1",
+    "lat": 19.970633,
+    "lon": -155.84575
   }
 ]
