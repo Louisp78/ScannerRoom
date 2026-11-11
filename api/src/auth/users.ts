@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm'
-import type { IdentityKey, Provider, SessionUser } from '../contract.ts'
+import type { IdentityKey, Provider, SessionUser, UserSummary } from '../contract.ts'
 import type { Db } from '../db/client.ts'
 import { userIdentities, users } from '../db/schema.ts'
 
@@ -92,7 +92,15 @@ export function createUserStore(db: Db, adminIdentities: ReadonlySet<IdentityKey
     return (await load(userId))!
   }
 
-  return { load, signIn }
+  /** Everyone who signed in at least once, by name. */
+  function list(): Promise<UserSummary[]> {
+    return db
+      .select({ id: users.id, displayName: users.displayName, orcidId: users.orcidId })
+      .from(users)
+      .orderBy(users.displayName, users.id)
+  }
+
+  return { load, signIn, list }
 }
 
 export type UserStore = ReturnType<typeof createUserStore>

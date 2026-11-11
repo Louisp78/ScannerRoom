@@ -4,6 +4,7 @@ import { createApp } from '../src/app.ts'
 import { createUserStore } from '../src/auth/users.ts'
 import { loadConfig, type IdentityKey } from '../src/config.ts'
 import { connect, runMigrations } from '../src/db/client.ts'
+import { createTransectStore } from '../src/transects/store.ts'
 
 export const PUBLIC_URL = 'http://localhost:5173'
 
@@ -22,9 +23,9 @@ export async function setUp(adminIdentities: IdentityKey[] = []) {
 
   const app = createApp({
     config,
-    db,
     pool,
     users,
+    transects: createTransectStore(db),
     strategies: [],
     // Stands in for the provider round trip, which needs a real ORCID or Google.
     beforeRoutes: (app) =>
