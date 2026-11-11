@@ -16,5 +16,11 @@
     "name": "Old Kona, site 3 — transect 3",
     "lat": 19.645883,
     "lon": -156.0167
+  },
+  {
+    "transectKey": "site3-transect2-north",
+    "name": "Old Kona, site 3 — transect 2 (north leg)",
+    "lat": 19.645883,
+    "lon": -156.0167
   }
 ]
