@@ -67,18 +67,15 @@ export function createApp({ config, db, pool, users, strategies, beforeRoutes }:
 
   /**
    * nginx `auth_request` target guarding the transect data files
-   * (/transects/<key>/*). nginx passes the original URI; showcase transects
-   * stay readable without a session.
+   * (/transects/<key>/*). nginx passes the key of the folder it serves from,
+   * taken from the normalised path (never parse the raw URI here: dot
+   * segments would let a showcase key vouch for another folder). Showcase
+   * transects stay readable without a session.
    */
   app.get('/api/auth/check', async (req, res) => {
     if (req.user) return res.status(204).end()
-    const key = /^\/transects\/([^/?#]+)\//.exec(req.get('x-original-uri') ?? '')?.[1]
-    let allowed = false
-    try {
-      allowed = key !== undefined && (await transects.isShowcase(decodeURIComponent(key)))
-    } catch (e) {
-      if (!(e instanceof URIError)) throw e
-    }
+    const key = req.get('x-transect-key')
+    const allowed = !!key && (await transects.isShowcase(key))
     res.status(allowed ? 204 : 401).end()
   })
   // Sign-in attempts are cheap to make and expensive to serve (provider round
