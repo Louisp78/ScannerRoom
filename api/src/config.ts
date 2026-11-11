@@ -66,7 +66,8 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): Config {
       issuer: new URL('https://accounts.google.com'),
       clientId: e.GOOGLE_CLIENT_ID,
       clientSecret: e.GOOGLE_CLIENT_SECRET,
-      scope: 'openid email profile',
+      // No `email`: it is never used, and the privacy policy says it is not collected.
+      scope: 'openid profile',
     })
   return {
     port: e.PORT,

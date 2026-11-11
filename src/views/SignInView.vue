@@ -88,6 +88,17 @@ onMounted(async () => {
         </p>
         <p v-else class="mt-6 text-sm text-foam/50">Loading…</p>
 
+        <p v-if="providers?.length" class="mt-4 text-xs text-foam/50">
+          By signing in, you accept the
+          <RouterLink to="/legal#terms" class="text-scanner hover:underline"
+            >terms of use</RouterLink
+          >
+          and the
+          <RouterLink to="/legal#privacy" class="text-scanner hover:underline"
+            >privacy policy</RouterLink
+          >.
+        </p>
+
         <p class="mt-8 text-xs text-foam/50">
           No account yet? Signing in creates one. Want to add your own transects?
           <RouterLink to="/request-access" class="text-scanner underline-offset-2 hover:underline">

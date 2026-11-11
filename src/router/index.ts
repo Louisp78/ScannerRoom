@@ -11,6 +11,8 @@ declare module 'vue-router' {
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
+  // Anchored links (/legal#privacy) land on their section; other pages open at the top.
+  scrollBehavior: (to, _from, saved) => saved ?? (to.hash ? { el: to.hash } : { top: 0 }),
   routes: [
     {
       path: '/',
@@ -42,6 +44,11 @@ const router = createRouter({
       path: '/sign-in',
       name: 'sign-in',
       component: () => import('../views/SignInView.vue'),
+    },
+    {
+      path: '/legal',
+      name: 'legal',
+      component: () => import('../views/LegalView.vue'),
     },
     {
       path: '/request-access',
