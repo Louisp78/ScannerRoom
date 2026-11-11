@@ -41,6 +41,27 @@ describe('GET /api/me', () => {
   })
 })
 
+describe('GET /api/me/transects', () => {
+  it('is 401 when signed out', async () => {
+    await request(ctx.app).get('/api/me/transects').expect(401)
+  })
+
+  it("lists only the signed-in user's transects", async () => {
+    const mine = await (await ctx.agentFor(owner)).get('/api/me/transects').expect(200)
+    expect(mine.body.transects.map((t: { key: string }) => t.key).sort()).toEqual([
+      'kona',
+      'private-reef',
+    ])
+    expect(mine.body.transects[0]).toEqual({
+      key: expect.any(String),
+      showcase: expect.any(Boolean),
+      createdAt: expect.any(String),
+    })
+    const none = await (await ctx.agentFor(other)).get('/api/me/transects').expect(200)
+    expect(none.body).toEqual({ transects: [] })
+  })
+})
+
 describe('GET /api/transects/:key', () => {
   it('serves a showcase transect, with its contributor, to anyone', async () => {
     const res = await request(ctx.app).get('/api/transects/kona').expect(200)

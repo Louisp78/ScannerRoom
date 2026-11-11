@@ -25,6 +25,19 @@ export interface UserSummary {
   orcidId: string | null
 }
 
+/** A transect credited to the signed-in user. */
+export interface OwnTransect {
+  key: string
+  showcase: boolean
+  /** ISO 8601 timestamp of when the transect was registered. */
+  createdAt: string
+}
+
+/** GET /api/me/transects: the signed-in user's contributions, newest first. */
+export interface OwnTransectsResponse {
+  transects: OwnTransect[]
+}
+
 /** GET /api/users (admins only) */
 export interface UsersResponse {
   users: UserSummary[]

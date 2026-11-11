@@ -4,6 +4,8 @@
  */
 import type {
   ApiError,
+  OwnTransect,
+  OwnTransectsResponse,
   Provider,
   ProvidersResponse,
   SessionUser,
@@ -13,7 +15,7 @@ import type {
   UsersResponse,
 } from '../api/src/contract'
 
-export type { Provider, SessionUser, TransectDetails, UserSummary }
+export type { OwnTransect, Provider, SessionUser, TransectDetails, UserSummary }
 
 export class ApiRequestError extends Error {
   readonly status: number
@@ -57,6 +59,11 @@ export function getMe(): Promise<SessionUser | undefined> {
     throw e
   })
   return me
+}
+
+/** The transects credited to the signed-in user, newest first. */
+export async function getMyTransects(): Promise<OwnTransect[]> {
+  return (await call<OwnTransectsResponse>('/me/transects')).transects
 }
 
 /** Details of a transect; undefined when the visitor may not see it (signed out, not a showcase). */
