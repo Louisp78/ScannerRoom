@@ -145,6 +145,8 @@ areas            (transect_key, data jsonb, version int, updated_at, updated_by)
 | `GET /api/auth/check` | internal (nginx `auth_request`) | 204 if signed in or the URI is a showcase transect's file, 401 otherwise |
 | `GET /api/me` | session | Current user, identities, admin flag |
 | `GET /api/transects/:key` | session (public for a showcase transect) | Transect details for the viewer: contributor, and whether the user may edit it |
+| `PUT /api/transects/:key/contributor` | session + **admin** | Reassign the transect to another user (`{ userId }`), or to nobody (`null`) |
+| `GET /api/users` | session + **admin** | Users to choose from when reassigning a transect |
 | `GET /api/transects/:key/areas` | session (public for a showcase transect) | Read areas |
 | `PUT /api/transects/:key/areas` | session + **owner or admin** | Replace areas, `If-Match: <version>` |
 | `POST /api/transects` | session or ingest API token | Register a transect and its owner (called by the local ingest) |
@@ -231,9 +233,9 @@ The storage seam of `feat/us-2.5-biome-areas` is isolated in `src/biomes.ts` (`l
 
 Done in this branch:
 
-- API (`api/`): config, Drizzle schema and first migration, ORCID and Google sign-in through Passport + `openid-client`, explicit linking, sessions in Postgres, admin from `ADMIN_IDENTITIES`, CSRF check, rate limit on sign-in, `GET /api/me`, `GET /api/transects/:key`, `GET /api/auth/check`, `register-transect.ts` script.
-- Tests: 20 Vitest + Supertest tests against a real Postgres (accounts, linking rules, admin, access to transects, nginx check, CSRF, sign-out, open-redirect protection).
-- Viewer: sign-in page, router guard on the atlas and the viewer (showcase transects stay open), account menu with ORCID linking and sign-out, contributor line in the viewer badge, Vite proxy to the API.
+- API (`api/`): config, Drizzle schema and first migration, ORCID and Google sign-in through Passport + `openid-client`, explicit linking, sessions in Postgres, admin from `ADMIN_IDENTITIES`, CSRF check, rate limit on sign-in, `GET /api/me`, `GET /api/transects/:key`, `GET /api/auth/check`, admin reassignment of a transect's contributor (`PUT /api/transects/:key/contributor`, `GET /api/users`), `register-transect.ts` script.
+- Tests: 27 Vitest + Supertest tests against a real Postgres (accounts, linking rules, admin, access to transects, nginx check, CSRF, sign-out, open-redirect protection, contributor reassignment).
+- Viewer: sign-in page, router guard on the atlas and the viewer (showcase transects stay open), account menu with ORCID linking and sign-out, contributor line in the viewer badge with a contributor picker for admins, Vite proxy to the API.
 - Infrastructure: site `nginx.conf` (`/api` proxy, `auth_request` on transect files, no edge caching), API Dockerfile, `docker-compose.yml` for local Postgres, CI test job and deploy of the API and the database.
 
 Still to do:

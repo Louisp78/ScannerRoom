@@ -18,12 +18,29 @@ export interface SessionUser {
   isAdmin: boolean
 }
 
+/** A user as shown to others: transect contributor, admin user list. */
+export interface UserSummary {
+  id: number
+  displayName: string
+  orcidId: string | null
+}
+
+/** GET /api/users (admins only) */
+export interface UsersResponse {
+  users: UserSummary[]
+}
+
+/** PUT /api/transects/:key/contributor (admins only); null removes the contributor. */
+export interface SetContributorRequest {
+  userId: number | null
+}
+
 /** GET /api/transects/:key */
 export interface TransectDetails {
   key: string
   showcase: boolean
   /** Who added the transect; null until an owner is assigned. */
-  contributor: { displayName: string; orcidId: string | null } | null
+  contributor: UserSummary | null
   /** The signed-in user may edit it (owner or admin). */
   editable: boolean
 }

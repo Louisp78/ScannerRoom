@@ -5,8 +5,10 @@ import session from 'express-session'
 import helmet from 'helmet'
 import type pg from 'pg'
 import type { Config } from './config.ts'
+import type { UsersResponse } from './contract.ts'
 import type { Db } from './db/client.ts'
-import { csrfCheck, HttpError } from './auth/guards.ts'
+import { users as usersTable } from './db/schema.ts'
+import { csrfCheck, HttpError, requireAdmin } from './auth/guards.ts'
 import { createAuthenticator, type ProviderStrategy } from './auth/passport.ts'
 import { authRouter } from './auth/routes.ts'
 import type { UserStore } from './auth/users.ts'
@@ -93,6 +95,19 @@ export function createApp({ config, db, pool, users, strategies, beforeRoutes }:
   app.get('/api/me', (req, res) => {
     if (!req.user) throw new HttpError(401, 'Sign in required.')
     res.json(req.user)
+  })
+  /** Everyone who signed in at least once: the choices when an admin reassigns a transect. */
+  app.get('/api/users', requireAdmin, async (_req, res) => {
+    const list = await db
+      .select({
+        id: usersTable.id,
+        displayName: usersTable.displayName,
+        orcidId: usersTable.orcidId,
+      })
+      .from(usersTable)
+      .orderBy(usersTable.displayName, usersTable.id)
+    const body: UsersResponse = { users: list }
+    res.json(body)
   })
   app.use('/api/transects', transects.router)
 
