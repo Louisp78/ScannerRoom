@@ -6,7 +6,8 @@
 # reconstruction alone fills most of the RAM and the GPU, and the intermediates
 # (source video, frames, .npz archive) weigh 3-4 GB. They are deleted once the
 # transect is exported, so the disk only ever holds one transect's worth.
-# A failing transect is logged and skipped; the others still get built.
+# A failing transect is logged and skipped; the others still get built, and its
+# reconstruction is kept so that rerunning the key only redoes the export.
 #
 # Usage: ./build-catalog.sh [transect-key ...]   (default: the whole catalog)
 set -uo pipefail
@@ -39,17 +40,24 @@ open(path, "w").write(json.dumps(sites, indent=2, ensure_ascii=False) + "\n")
 failed=()
 for key in "${KEYS[@]}"; do
   echo "=== $key ($(date '+%H:%M'))"
-  if "$HERE/01-fetch-transect.sh" "$key" &&
-    "$HERE/02-extract-frames.sh" "$key" &&
-    "$HERE/03-reconstruct.sh" "$key" &&
-    "$HERE/04-export-web.sh" "$key" &&
+  npz="$ROOT/out/lingbot/$key.npz"
+  # A reconstruction kept from a failed export is reused: only the export reruns.
+  if [ -s "$npz" ] && [ -s "$ROOT/frames/$key.json" ]; then
+    reconstruct() { echo "Reusing $npz"; }
+  else
+    reconstruct() { "$HERE/02-extract-frames.sh" "$key" && "$HERE/03-reconstruct.sh" "$key"; }
+  fi
+  if "$HERE/01-fetch-transect.sh" "$key" && reconstruct && "$HERE/04-export-web.sh" "$key" &&
     register "$key"; then
     echo "=== $key done ($(date '+%H:%M'))"
+    rm -rf "$ROOT/transects/$key.mp4" "$ROOT/frames/$key.json" "$npz"
   else
     echo "=== $key FAILED ($(date '+%H:%M'))"
     failed+=("$key")
   fi
-  rm -rf "$ROOT/transects/$key.mp4" "$ROOT/frames/$key" "$ROOT/frames/$key.json" "$ROOT/out/lingbot/$key.npz"
+  # Frames only feed the reconstruction. On failure the video, sidecar and
+  # .npz stay (~3 GB), so a fixed export does not redo ~30 min of inference.
+  rm -rf "$ROOT/frames/$key"
 done
 
 [ ${#failed[@]} -eq 0 ] || { echo "Failed: ${failed[*]}" >&2; exit 1; }
