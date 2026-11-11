@@ -164,7 +164,8 @@ KEY_HALF = 1 << (KEY_BITS - 1)
 
 def voxel_keys(p: np.ndarray, edge: float) -> np.ndarray:
     q = np.floor(p / edge).astype(np.int64) + KEY_HALF
-    assert q.min() >= 0 and q.max() < 1 << KEY_BITS, "cloud too large for the voxel key"
+    # A frame can keep no pixel at all (diver filming open water).
+    assert not q.size or q.min() >= 0 and q.max() < 1 << KEY_BITS, "cloud too large for the voxel key"
     return (q[:, 0] << 2 * KEY_BITS) | (q[:, 1] << KEY_BITS) | q[:, 2]
 
 
