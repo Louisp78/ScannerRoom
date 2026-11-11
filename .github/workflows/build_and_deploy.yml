@@ -17,6 +17,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: npm ci --prefix api
       - run: npm run check
 
   typecheck:
@@ -28,6 +29,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # The root type-check includes the API project (tsconfig references).
+      - run: npm ci --prefix api
       - run: npm run type-check
 
   build:
@@ -41,10 +44,34 @@ jobs:
       - run: npm ci
       - run: npm run build-only
 
+  # API tests against a real Postgres, initialised like production (db-init).
+  test-api:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: scannerroom_test
+          POSTGRES_USER: scannerroom_api
+          POSTGRES_PASSWORD: scannerroom
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U scannerroom_api -d scannerroom_test"
+          --health-interval 2s --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - run: npm ci --prefix api
+      - run: npm test --prefix api
+
   # Deploy only after lint, typecheck and build pass, and only on a push to
   # main. Pull requests run everything above but never deploy.
   deploy:
-    needs: [lint, typecheck, build]
+    needs: [lint, typecheck, build, test-api]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -59,27 +86,87 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
-          source: "Dockerfile,.dockerignore,nginx.conf,package.json,package-lock.json,index.html,vite.config.ts,vite-plugins,tsconfig*.json,env.d.ts,public,src"
+          source: "Dockerfile,.dockerignore,nginx.conf,package.json,package-lock.json,index.html,vite.config.ts,vite-plugins,tsconfig*.json,env.d.ts,public,src,api"
           target: "~/scannerroom/src"
           rm: true
           overwrite: true
 
       # The VPS native nginx (behind Cloudflare) routes
-      # scannerroom.louisplace.com -> 127.0.0.1:3001.
+      # scannerroom.louisplace.com -> 127.0.0.1:3001 (the site container). The
+      # site container proxies /api to the API container; the API and the
+      # database only live on the internal "scannerroom" docker network.
       - name: Build and serve on VPS
         uses: appleboy/ssh-action@v1
+        env:
+          DB_SUPERUSER_PASSWORD: ${{ secrets.DB_SUPERUSER_PASSWORD }}
+          DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          ORCID_CLIENT_ID: ${{ secrets.ORCID_CLIENT_ID }}
+          ORCID_CLIENT_SECRET: ${{ secrets.ORCID_CLIENT_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          ADMIN_IDENTITIES: ${{ secrets.ADMIN_IDENTITIES }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
+          envs: DB_SUPERUSER_PASSWORD,DATABASE_PASSWORD,SESSION_SECRET,ORCID_CLIENT_ID,ORCID_CLIENT_SECRET,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,ADMIN_IDENTITIES
           script: |
             set -e
             cd ~/scannerroom/src
+            docker network create scannerroom 2>/dev/null || true
+
+            # Database: created once, then kept across deploys (volume
+            # scannerroom-pgdata). No published port. The init script runs only
+            # on an empty volume; it is copied out of the wiped source folder.
+            if ! docker inspect scannerroom-db >/dev/null 2>&1; then
+              mkdir -p ~/scannerroom/db-init
+              cp api/db-init/* ~/scannerroom/db-init/
+              docker run -d \
+                --name scannerroom-db \
+                --network scannerroom \
+                --restart always \
+                -e POSTGRES_DB=scannerroom \
+                -e POSTGRES_USER=postgres \
+                -e POSTGRES_PASSWORD="$DB_SUPERUSER_PASSWORD" \
+                -e APP_DB_PASSWORD="$DATABASE_PASSWORD" \
+                -v scannerroom-pgdata:/var/lib/postgresql/data \
+                -v ~/scannerroom/db-init:/docker-entrypoint-initdb.d:ro \
+                postgres:17-alpine
+            fi
+
+            # API: secrets go to an env file only the deploy user can read.
+            umask 077
+            cat > ~/scannerroom/api.env <<ENV
+            DATABASE_URL=postgres://scannerroom_api:${DATABASE_PASSWORD}@scannerroom-db:5432/scannerroom
+            SESSION_SECRET=${SESSION_SECRET}
+            PUBLIC_URL=https://scannerroom.louisplace.com
+            TRUST_PROXY_HOPS=3
+            ORCID_ISSUER=https://orcid.org
+            ORCID_CLIENT_ID=${ORCID_CLIENT_ID}
+            ORCID_CLIENT_SECRET=${ORCID_CLIENT_SECRET}
+            GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+            GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+            ADMIN_IDENTITIES=${ADMIN_IDENTITIES}
+            ENV
+            umask 022
+            docker build -t scannerroom-api:latest api
+            docker rm -f scannerroom-api 2>/dev/null || true
+            docker run -d \
+              --name scannerroom-api \
+              --network scannerroom \
+              --restart always \
+              --env-file ~/scannerroom/api.env \
+              scannerroom-api:latest
+
+            # Site: the static bundle plus the nginx routing /api and guarding
+            # the transect data files.
             docker build -t scannerroom:latest .
             docker rm -f scannerroom 2>/dev/null || true
             docker run -d \
               --name scannerroom \
+              --network scannerroom \
               --restart always \
               -p 127.0.0.1:3001:80 \
               scannerroom:latest
