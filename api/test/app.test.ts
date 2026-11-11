@@ -47,7 +47,7 @@ describe('GET /api/transects/:key', () => {
     expect(res.body).toEqual({
       key: 'kona',
       showcase: true,
-      contributor: { displayName: 'Jane Doe', orcidId: '0000-0002' },
+      contributor: { id: owner, displayName: 'Jane Doe', orcidId: '0000-0002' },
       editable: false,
     })
   })
@@ -70,6 +70,71 @@ describe('GET /api/transects/:key', () => {
 
   it('is 404 for an unknown transect once signed in', async () => {
     await (await ctx.agentFor(other)).get('/api/transects/nope').expect(404)
+  })
+})
+
+describe('GET /api/users', () => {
+  it('is reserved to admins', async () => {
+    await request(ctx.app).get('/api/users').expect(401)
+    await (await ctx.agentFor(owner)).get('/api/users').expect(403)
+  })
+
+  it('lists every user by name', async () => {
+    const res = await (await ctx.agentFor(admin)).get('/api/users').expect(200)
+    expect(res.body.users.map((u: { displayName: string }) => u.displayName)).toEqual([
+      'Admin',
+      'Bob',
+      'Jane Doe',
+    ])
+  })
+})
+
+describe('PUT /api/transects/:key/contributor', () => {
+  const put = async (userId: number, key: string, body: object, status: number) =>
+    (await ctx.agentFor(userId))
+      .put(`/api/transects/${key}/contributor`)
+      .set(SAME_SITE)
+      .send(body)
+      .expect(status)
+
+  it('lets an admin reassign a transect', async () => {
+    const res = await put(admin, 'private-reef', { userId: other }, 200)
+    expect(res.body.contributor).toEqual({ id: other, displayName: 'Bob', orcidId: null })
+    // The new contributor may now edit it, the former one no longer.
+    const editable = async (userId: number) =>
+      (await (await ctx.agentFor(userId)).get('/api/transects/private-reef')).body.editable
+    expect(await editable(other)).toBe(true)
+    expect(await editable(owner)).toBe(false)
+  })
+
+  it('lets an admin remove the contributor', async () => {
+    const res = await put(admin, 'private-reef', { userId: null }, 200)
+    expect(res.body.contributor).toBeNull()
+  })
+
+  it('refuses non-admins, including the owner', async () => {
+    await put(owner, 'private-reef', { userId: other }, 403)
+    await request(ctx.app)
+      .put('/api/transects/private-reef/contributor')
+      .set(SAME_SITE)
+      .send({ userId: other })
+      .expect(401)
+  })
+
+  it('refuses cross-site requests', async () => {
+    await (
+      await ctx.agentFor(admin)
+    )
+      .put('/api/transects/private-reef/contributor')
+      .send({ userId: other })
+      .expect(403)
+  })
+
+  it('rejects unknown transects, unknown users and malformed bodies', async () => {
+    await put(admin, 'nope', { userId: other }, 404)
+    await put(admin, 'private-reef', { userId: 9999 }, 400)
+    await put(admin, 'private-reef', { userId: 'bob' }, 400)
+    await put(admin, 'private-reef', {}, 400)
   })
 })
 

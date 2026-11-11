@@ -7,10 +7,13 @@ import type {
   Provider,
   ProvidersResponse,
   SessionUser,
+  SetContributorRequest,
   TransectDetails,
+  UserSummary,
+  UsersResponse,
 } from '../api/src/contract'
 
-export type { Provider, SessionUser, TransectDetails }
+export type { Provider, SessionUser, TransectDetails, UserSummary }
 
 export class ApiRequestError extends Error {
   readonly status: number
@@ -59,6 +62,21 @@ export function getMe(): Promise<SessionUser | undefined> {
 /** Details of a transect; undefined when the visitor may not see it (signed out, not a showcase). */
 export function getTransect(key: string): Promise<TransectDetails | undefined> {
   return unlessSignedOut(call<TransectDetails>(`/transects/${encodeURIComponent(key)}`))
+}
+
+/** Every user, for admins choosing a transect's contributor. */
+export async function getUsers(): Promise<UserSummary[]> {
+  return (await call<UsersResponse>('/users')).users
+}
+
+/** Admins only: assign the transect to another user, or to nobody (null). */
+export function setContributor(key: string, userId: number | null): Promise<TransectDetails> {
+  const body: SetContributorRequest = { userId }
+  return call<TransectDetails>(`/transects/${encodeURIComponent(key)}/contributor`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
 }
 
 export async function getProviders(): Promise<Provider[]> {

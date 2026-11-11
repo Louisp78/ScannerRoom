@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
-import { getTransect, type TransectDetails } from '@/api'
+import { getMe, getTransect, type TransectDetails } from '@/api'
+import ContributorPicker from './ContributorPicker.vue'
 import { formatLatLon, type Site } from '@/sites'
 import { formatTime, type ReconstructionInfo, TransectScene } from '@/viewer/transectScene'
 
@@ -55,6 +56,8 @@ const infoRows = computed(() => {
 
 /** Contributor shown in the badge; loaded separately so the 3D scene never waits for it. */
 const contributor = ref<TransectDetails['contributor']>(null)
+/** Admins may reassign the transect from the badge (not on the embedded landing viewer). */
+const canReassign = ref(false)
 
 let scene: TransectScene | undefined
 let frameRequest = 0
@@ -65,6 +68,11 @@ onMounted(async () => {
     getTransect(props.site.transectKey).then(
       (details) => (contributor.value = details?.contributor ?? null),
       () => {}, // attribution is optional: the viewer works without the API
+    )
+  if (props.site && !props.embedded)
+    getMe().then(
+      (me) => (canReassign.value = !!me?.isAdmin),
+      () => {},
     )
   scene = new TransectScene(host.value!, { embedded: props.embedded })
   try {
@@ -163,6 +171,12 @@ onBeforeUnmount(() => {
             </a>
           </template>
         </span>
+        <ContributorPicker
+          v-if="canReassign"
+          :transect-key="site.transectKey"
+          :contributor="contributor"
+          @changed="contributor = $event"
+        />
       </div>
     </div>
 
