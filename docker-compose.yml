@@ -1,0 +1,27 @@
+# Local development database (US-4.1). Production runs the same image on the
+# VPS, on an internal docker network (see .github/workflows/build_and_deploy.yml).
+#   docker compose up -d db
+services:
+  db:
+    # Official image; PostGIS is added (same major version, same volume) when
+    # spatial queries arrive (US-1.4): postgis/postgis has no arm64 build.
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: scannerroom
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      APP_DB_PASSWORD: scannerroom
+      CREATE_TEST_DATABASE: '1'
+    ports:
+      # Loopback only: never reachable from the network.
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./api/db-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d scannerroom']
+      interval: 2s
+      retries: 30
+
+volumes:
+  pgdata:
