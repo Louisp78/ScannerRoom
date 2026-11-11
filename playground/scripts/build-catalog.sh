@@ -45,7 +45,10 @@ for key in "${KEYS[@]}"; do
   if [ -s "$npz" ] && [ -s "$ROOT/frames/$key.json" ]; then
     reconstruct() { echo "Reusing $npz"; }
   else
-    reconstruct() { "$HERE/02-extract-frames.sh" "$key" && "$HERE/03-reconstruct.sh" "$key"; }
+    # Frames only feed the reconstruction: free their disk before the export.
+    reconstruct() {
+      "$HERE/02-extract-frames.sh" "$key" && "$HERE/03-reconstruct.sh" "$key" && rm -rf "$ROOT/frames/$key"
+    }
   fi
   if "$HERE/01-fetch-transect.sh" "$key" && reconstruct && "$HERE/04-export-web.sh" "$key" &&
     register "$key"; then
@@ -55,8 +58,8 @@ for key in "${KEYS[@]}"; do
     echo "=== $key FAILED ($(date '+%H:%M'))"
     failed+=("$key")
   fi
-  # Frames only feed the reconstruction. On failure the video, sidecar and
-  # .npz stay (~3 GB), so a fixed export does not redo ~30 min of inference.
+  # On failure the video, sidecar and .npz stay (~3 GB), so a fixed export
+  # does not redo ~30 min of inference.
   rm -rf "$ROOT/frames/$key"
 done
 
