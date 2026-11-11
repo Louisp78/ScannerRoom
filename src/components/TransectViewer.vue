@@ -38,9 +38,12 @@ const infoRows = computed(() => {
     ['Model', r.model],
     [
       'Video',
-      r.videoLength && covered < r.videoLength - 1
-        ? `${formatTime(covered)} of ${formatTime(r.videoLength)}`
-        : `${formatTime(covered)}, whole video`,
+      // Older exports do not know the length of their source video.
+      r.videoLength === null
+        ? formatTime(covered)
+        : covered < r.videoLength - 1
+          ? `${formatTime(covered)} of ${formatTime(r.videoLength)}`
+          : `${formatTime(covered)}, whole video`,
     ],
     ['Frames', `${r.frames} at ${+r.fps.toFixed(2)} fps`],
     ['Points', `${(r.points / 1e6).toFixed(2)} M`],
