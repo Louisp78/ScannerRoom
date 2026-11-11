@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Signed-in user in the atlas header: name, ORCID linking, sign-out (US-4.1).
+// Signed-in user in the atlas header: name, ORCID linking, profile, sign-out (US-4.1).
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getMe, getProviders, signInUrl, signOut, type SessionUser } from '@/api'
@@ -67,6 +67,13 @@ async function onSignOut() {
           >Credits your transects to your researcher iD.</span
         >
       </a>
+      <RouterLink
+        role="menuitem"
+        to="/profile"
+        class="block rounded-lg px-3 py-2 hover:bg-scanner/10"
+      >
+        My profile
+      </RouterLink>
       <button
         type="button"
         role="menuitem"

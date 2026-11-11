@@ -5,9 +5,10 @@ import session from 'express-session'
 import helmet from 'helmet'
 import type pg from 'pg'
 import type { Config } from './config.ts'
-import type { UsersResponse } from './contract.ts'
+import { desc, eq } from 'drizzle-orm'
+import type { OwnTransectsResponse, UsersResponse } from './contract.ts'
 import type { Db } from './db/client.ts'
-import { users as usersTable } from './db/schema.ts'
+import { transects as transectsTable, users as usersTable } from './db/schema.ts'
 import { csrfCheck, HttpError, requireAdmin } from './auth/guards.ts'
 import { createAuthenticator, type ProviderStrategy } from './auth/passport.ts'
 import { authRouter } from './auth/routes.ts'
@@ -92,6 +93,23 @@ export function createApp({ config, db, pool, users, strategies, beforeRoutes }:
   app.get('/api/me', (req, res) => {
     if (!req.user) throw new HttpError(401, 'Sign in required.')
     res.json(req.user)
+  })
+  /** The transects credited to the signed-in user, for their profile page. */
+  app.get('/api/me/transects', async (req, res) => {
+    if (!req.user) throw new HttpError(401, 'Sign in required.')
+    const rows = await db
+      .select({
+        key: transectsTable.key,
+        showcase: transectsTable.showcase,
+        createdAt: transectsTable.createdAt,
+      })
+      .from(transectsTable)
+      .where(eq(transectsTable.ownerId, req.user.id))
+      .orderBy(desc(transectsTable.createdAt), transectsTable.key)
+    const body: OwnTransectsResponse = {
+      transects: rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })),
+    }
+    res.json(body)
   })
   /** Everyone who signed in at least once: the choices when an admin reassigns a transect. */
   app.get('/api/users', requireAdmin, async (_req, res) => {
