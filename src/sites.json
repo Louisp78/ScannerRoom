@@ -10,5 +10,11 @@
     "name": "tab south",
     "lat": -20.037528,
     "lon": 57.541861
+  },
+  {
+    "transectKey": "site3-transect3",
+    "name": "Old Kona, site 3 — transect 3",
+    "lat": 19.645883,
+    "lon": -156.0167
   }
 ]
