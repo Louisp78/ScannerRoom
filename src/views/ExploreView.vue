@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AccountMenu from '@/components/AccountMenu.vue'
 import WorldGlobe from '@/components/WorldGlobe.vue'
 import { SITES } from '@/sites'
 
@@ -49,6 +50,7 @@ const addTransectRoute = import.meta.env.DEV ? '/ingest' : '/request-access'
           >
             Add a transect
           </RouterLink>
+          <AccountMenu />
         </div>
       </div>
     </header>

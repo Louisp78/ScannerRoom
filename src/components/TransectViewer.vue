@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { getTransect, type TransectDetails } from '@/api'
 import { formatLatLon, type Site } from '@/sites'
 import { formatTime, TransectScene } from '@/viewer/transectScene'
 
@@ -27,11 +28,19 @@ const time = ref(0)
  */
 const playback = ref<'stopped' | 'playing' | 'paused'>('stopped')
 
+/** Contributor shown in the badge; loaded separately so the 3D scene never waits for it. */
+const contributor = ref<TransectDetails['contributor']>(null)
+
 let scene: TransectScene | undefined
 let frameRequest = 0
 let lastTick = 0
 
 onMounted(async () => {
+  if (props.site)
+    getTransect(props.site.transectKey).then(
+      (details) => (contributor.value = details?.contributor ?? null),
+      () => {}, // attribution is optional: the viewer works without the API
+    )
   scene = new TransectScene(host.value!, { embedded: props.embedded })
   try {
     const loaded = await scene.load(props.baseUrl, (r) => (progress.value = r))
@@ -113,6 +122,21 @@ onBeforeUnmount(() => {
       >
         <span class="truncate text-sm font-semibold">{{ site.name }}</span>
         <span class="font-mono text-[11px] text-scanner">{{ formatLatLon(site) }}</span>
+        <span v-if="contributor" class="truncate text-[11px] text-foam/70">
+          by {{ contributor.displayName }}
+          <template v-if="contributor.orcidId">
+            ·
+            <a
+              :href="`https://orcid.org/${contributor.orcidId}`"
+              target="_blank"
+              rel="noopener"
+              class="pointer-events-auto font-mono text-scanner hover:underline"
+              :aria-label="`ORCID profile of ${contributor.displayName}`"
+            >
+              ORCID {{ contributor.orcidId }}
+            </a>
+          </template>
+        </span>
       </div>
     </div>
 
