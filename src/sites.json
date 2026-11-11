@@ -52,5 +52,11 @@
     "name": "Puakō, site 2 — transect 1",
     "lat": 19.96915,
     "lon": -155.851233
+  },
+  {
+    "transectKey": "site2-transect2",
+    "name": "Puakō, site 2 — transect 2",
+    "lat": 19.96915,
+    "lon": -155.851233
   }
 ]
