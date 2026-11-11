@@ -12,6 +12,9 @@ export default defineConfig({
   server: {
     // The pipeline writes thousands of frames and a Python venv lives there.
     watch: { ignored: ['**/playground/**'] },
+    // The API (api/, `npm run dev` there) is served on the same origin, as in
+    // production, so the session cookie and the CSRF origin check just work.
+    proxy: { '/api': 'http://localhost:3002' },
   },
   resolve: {
     alias: {
