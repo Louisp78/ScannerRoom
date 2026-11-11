@@ -5,7 +5,8 @@
 #
 # Usage: ./04-export-web.sh [transect-key]
 # Env:   CONF (default 1.05, depth-confidence threshold), VOXEL (default 0.01, fraction of median depth),
-#        PATH_SMOOTH / HEADING_SMOOTH (default 1.0 / 1.5, seconds of video)
+#        PATH_SMOOTH / HEADING_SMOOTH (default 1.0 / 1.5, seconds of video),
+#        MAX_POINTS (default 2000000, web budget of the cloud)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -22,7 +23,8 @@ PY="$ROOT/vendor/.venv-lingbot/bin/python"
 
 "$PY" -I "$ROOT/scripts/export-web.py" "$SRC" "$META" "$DEST" \
   --conf "${CONF:-1.05}" --voxel "${VOXEL:-0.01}" \
-  --path-smooth "${PATH_SMOOTH:-1.0}" --heading-smooth "${HEADING_SMOOTH:-1.5}"
+  --path-smooth "${PATH_SMOOTH:-1.0}" --heading-smooth "${HEADING_SMOOTH:-1.5}" \
+  --max-points "${MAX_POINTS:-2000000}"
 
 # Same timeline as the source (path.json times stay valid), small and muted:
 # it only plays in a thumbnail. faststart lets the browser seek before the end

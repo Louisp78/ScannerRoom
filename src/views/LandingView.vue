@@ -2,7 +2,7 @@
 import { defineAsyncComponent, onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue'
 import type { Directive } from 'vue'
 import ScanHero from '@/components/ScanHero.vue'
-import { formatLatLon, SITES } from '@/sites'
+import { formatLatLon, type Site, SITES } from '@/sites'
 
 /**
  * Fades an element in the first time it scrolls into view. Elements start
@@ -76,6 +76,20 @@ const features = [
     roadmap: true,
   },
 ]
+
+/**
+ * Atlas pins, one per group of sites that would overlap on the flat map: its
+ * 24 px pins span ~16° on a ~530 px wide map, so nearby sites (the transects of
+ * a reef, the sites of a coast) share one pin with their count, which opens the
+ * globe where they separate when zooming in.
+ */
+const ATLAS_PIN_DEG = 16
+const atlasPins = SITES.reduce<{ lat: number; lon: number; sites: Site[] }[]>((pins, site) => {
+  const pin = pins.find((p) => Math.hypot(p.lat - site.lat, p.lon - site.lon) < ATLAS_PIN_DEG / 2)
+  if (pin) pin.sites.push(site)
+  else pins.push({ lat: site.lat, lon: site.lon, sites: [site] })
+  return pins
+}, [])
 
 /** Reconstruction showcased on the landing page, as a real example of the output. */
 const featured = SITES.find((site) => site.transectKey === 'site3-transect2-south-return')
@@ -327,17 +341,25 @@ onBeforeUnmount(() => showcaseObserver?.disconnect())
         <span class="atlas-sweep absolute inset-y-0 w-px bg-scanner/70" aria-hidden="true" />
         <ul class="absolute inset-0">
           <li
-            v-for="site in SITES"
-            :key="site.transectKey"
+            v-for="pin in atlasPins"
+            :key="pin.sites[0]!.transectKey"
             class="absolute"
             :style="{
-              left: `${((site.lon + 180) / 360) * 100}%`,
-              top: `${((90 - site.lat) / 180) * 100}%`,
+              left: `${((pin.lon + 180) / 360) * 100}%`,
+              top: `${((90 - pin.lat) / 180) * 100}%`,
             }"
           >
             <RouterLink
-              :to="{ name: 'transect', params: { transectKey: site.transectKey } }"
-              :aria-label="`Open ${site.name}`"
+              :to="
+                pin.sites.length > 1
+                  ? '/explore'
+                  : { name: 'transect', params: { transectKey: pin.sites[0]!.transectKey } }
+              "
+              :aria-label="
+                pin.sites.length > 1
+                  ? `${pin.sites.length} transects around ${formatLatLon(pin)}: open the globe`
+                  : `Open ${pin.sites[0]!.name}`
+              "
               class="group absolute grid size-6 -translate-1/2 place-items-center rounded-full focus-visible:outline-2 focus-visible:outline-scanner"
             >
               <span
@@ -347,10 +369,21 @@ onBeforeUnmount(() => showcaseObserver?.disconnect())
                 class="relative size-2.5 rounded-full border border-foam bg-scanner shadow-[0_0_10px_var(--color-scanner)] transition-[scale] group-hover:scale-150"
               />
               <span
-                class="pointer-events-none absolute top-full mt-1 rounded bg-abyss/90 px-1.5 py-0.5 text-[11px] whitespace-nowrap text-foam/90 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
-                :class="site.lon > 0 ? 'right-0' : 'left-0'"
+                v-if="pin.sites.length > 1"
+                class="absolute -top-1.5 -right-2 rounded-full bg-foam px-1 text-[10px] leading-4 font-semibold text-abyss"
+                aria-hidden="true"
               >
-                {{ site.name }} · {{ formatLatLon(site) }}
+                {{ pin.sites.length }}
+              </span>
+              <span
+                class="pointer-events-none absolute top-full mt-1 rounded bg-abyss/90 px-1.5 py-0.5 text-[11px] whitespace-nowrap text-foam/90 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+                :class="pin.lon > 0 ? 'right-0' : 'left-0'"
+              >
+                {{
+                  pin.sites.length > 1
+                    ? `${pin.sites.length} transects · ${formatLatLon(pin)}`
+                    : `${pin.sites[0]!.name} · ${formatLatLon(pin)}`
+                }}
               </span>
             </RouterLink>
           </li>

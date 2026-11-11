@@ -12,10 +12,37 @@ export interface TransectPath {
   forwards: [number, number, number][]
   /** Timestamp of each frame in the source video, in seconds. */
   times: number[]
+  reconstruction: ReconstructionInfo
 }
 
-/** Interval between time labels along the path, in seconds of video. */
-const LABEL_EVERY_S = 10
+/** How the 3D was built (export-web.py). Lengths in scene units, arbitrary scale. */
+export interface ReconstructionInfo {
+  model: string
+  frames: number
+  /** Frames extracted per second of video. */
+  fps: number
+  /** Length of the source video in seconds; null for older exports. */
+  videoLength: number | null
+  points: number
+  /** Voxel edge of the downsampling. */
+  voxel: number
+  /** Voxel edge relative to the median camera-to-reef distance. */
+  voxelOfMedianDepth: number
+  /** Depth-confidence threshold. */
+  confidence: number
+  /** Share of the pixels kept in the cloud. */
+  keptPixels: number
+  /** Share of the pixels recovered below the threshold by multi-view agreement. */
+  recoveredPixels: number
+  /** Per-frame depth scale correction, 10th and 90th percentiles. */
+  depthScale: [number, number]
+  pathLength: number
+  medianDepth: number
+}
+
+/** Time labels along the path: the shortest of these steps giving at most MAX_LABELS. */
+const LABEL_STEPS_S = [10, 30, 60, 120, 300]
+const MAX_LABELS = 15
 
 const ABYSS = 0x0a2e44
 const SCANNER = 0x2cd3d9
@@ -35,6 +62,7 @@ export class TransectScene {
   private readonly renderer: THREE.WebGLRenderer
   private readonly labelRenderer = new CSS2DRenderer()
   private readonly scene = new THREE.Scene()
+  /** Clipping planes are fitted to the cloud in load(). */
   private readonly camera = new THREE.PerspectiveCamera(60, 1, 0.001, 100)
   private readonly controls: OrbitControls
   private readonly resizeObserver: ResizeObserver
@@ -109,7 +137,7 @@ export class TransectScene {
   async load(
     baseUrl: string,
     onProgress?: (ratio: number) => void,
-  ): Promise<{ range: [number, number]; videoUrl: string }> {
+  ): Promise<{ range: [number, number]; videoUrl: string; info: ReconstructionInfo }> {
     const [cloud, path] = await Promise.all([
       new PLYLoader().loadAsync(`${baseUrl}/cloud.ply`, (e) => {
         if (e.lengthComputable) onProgress?.(e.loaded / e.total)
@@ -122,16 +150,22 @@ export class TransectScene {
 
     cloud.computeBoundingSphere()
     const radius = cloud.boundingSphere!.radius
-    // Roughly voxel-sized points: closes the gaps without blurring the reef.
+    const info = path.reconstruction
+    // Twice the voxel edge closes the gaps between voxel centres without
+    // blurring the reef, whatever the length of the transect.
     const points = new THREE.Points(
       cloud,
-      new THREE.PointsMaterial({ size: radius / 300, vertexColors: true }),
+      new THREE.PointsMaterial({ size: info.voxel * 2, vertexColors: true }),
     )
     this.world.add(points)
+    // The scale is arbitrary: fit the clipping planes to this cloud.
+    this.camera.near = info.medianDepth / 100
+    this.camera.far = radius * 8
+    this.camera.updateProjectionMatrix()
 
     this.addPath(path, radius)
     this.frame(cloud)
-    return { range: this.timeRange, videoUrl: `${baseUrl}/${path.video}` }
+    return { range: this.timeRange, videoUrl: `${baseUrl}/${path.video}`, info }
   }
 
   /** Moves the diver marker to a given time of the video. */
@@ -222,14 +256,14 @@ export class TransectScene {
     this.pathGroup.add(tube)
     this.world.add(this.pathGroup)
 
-    // Time ticks every LABEL_EVERY_S seconds, plus the end of the path. The
-    // start gets none: the diver marker sits there and already shows the time.
+    // Time ticks at a round step, plus the end of the path. The start gets
+    // none: the diver marker sits there and already shows the time.
     const [t0, t1] = this.timeRange
+    const step = LABEL_STEPS_S.find((s) => (t1 - t0) / s <= MAX_LABELS) ?? LABEL_STEPS_S.at(-1)!
     const tickGeometry = new THREE.SphereGeometry(tubeRadius * 2.5, 12, 8)
     const tickMaterial = new THREE.MeshBasicMaterial({ color: SCANNER })
     const ticks: number[] = []
-    for (let t = (Math.floor(t0 / LABEL_EVERY_S) + 1) * LABEL_EVERY_S; t < t1; t += LABEL_EVERY_S)
-      ticks.push(t)
+    for (let t = (Math.floor(t0 / step) + 1) * step; t < t1; t += step) ticks.push(t)
     ticks.push(t1)
     for (const t of ticks) {
       const tick = new THREE.Mesh(tickGeometry, tickMaterial)

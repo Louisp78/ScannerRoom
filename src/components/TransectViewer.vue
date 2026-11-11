@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { getTransect, type TransectDetails } from '@/api'
 import { formatLatLon, type Site } from '@/sites'
-import { formatTime, TransectScene } from '@/viewer/transectScene'
+import { formatTime, type ReconstructionInfo, TransectScene } from '@/viewer/transectScene'
 
 const props = defineProps<{
   /** Folder under public/ holding cloud.ply and path.json. */
@@ -27,6 +27,31 @@ const time = ref(0)
  * time advancing in real video time or frozen.
  */
 const playback = ref<'stopped' | 'playing' | 'paused'>('stopped')
+const info = ref<ReconstructionInfo>()
+
+const percent = (ratio: number) => `${Math.round(ratio * 100)} %`
+/** Main parameters of the 3D representation, for the info panel. */
+const infoRows = computed(() => {
+  const r = info.value
+  if (!r || !range.value) return []
+  const covered = range.value[1] - range.value[0] + 1 / r.fps
+  return [
+    ['Model', r.model],
+    [
+      'Video',
+      r.videoLength && covered < r.videoLength - 1
+        ? `${formatTime(covered)} of ${formatTime(r.videoLength)}`
+        : `${formatTime(covered)}, whole video`,
+    ],
+    ['Frames', `${r.frames} at ${+r.fps.toFixed(2)} fps`],
+    ['Points', `${(r.points / 1e6).toFixed(2)} M`],
+    ['Voxel', `${(r.voxelOfMedianDepth * 100).toFixed(1)} % of viewing distance`],
+    ['Confidence', `≥ ${r.confidence}, +${percent(r.recoveredPixels)} multi-view`],
+    ['Pixels kept', percent(r.keptPixels)],
+    ['Depth rescale', `×${r.depthScale[0]}–${r.depthScale[1]} (p10–p90)`],
+    ['Scale', 'relative, no metric reference'],
+  ]
+})
 
 /** Contributor shown in the badge; loaded separately so the 3D scene never waits for it. */
 const contributor = ref<TransectDetails['contributor']>(null)
@@ -46,6 +71,7 @@ onMounted(async () => {
     const loaded = await scene.load(props.baseUrl, (r) => (progress.value = r))
     range.value = loaded.range
     videoUrl.value = loaded.videoUrl
+    info.value = loaded.info
     time.value = range.value[0]
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
@@ -147,19 +173,36 @@ onBeforeUnmount(() => {
       Loading point cloud… {{ Math.round(progress * 100) }}%
     </p>
 
-    <!-- Source video, in sync with the camera while traveling along the path. -->
-    <video
-      v-if="videoUrl && !videoFailed"
-      v-show="playback !== 'stopped'"
-      ref="video"
-      :src="videoUrl"
-      muted
-      playsinline
-      preload="auto"
-      aria-label="Transect video"
-      class="absolute top-4 right-4 w-48 rounded-lg border border-foam/20 shadow-lg sm:w-72"
-      @error="videoFailed = true"
-    />
+    <div class="absolute top-4 right-4 flex w-48 flex-col gap-3 sm:w-72">
+      <!-- How the 3D was built: too dense for a phone screen or the landing showcase. -->
+      <section
+        v-if="infoRows.length && !embedded"
+        class="hidden rounded-lg bg-abyss/80 px-3 py-2 text-xs text-foam backdrop-blur md:block"
+        aria-label="3D reconstruction parameters"
+      >
+        <h2 class="mb-1 font-semibold text-scanner">3D reconstruction</h2>
+        <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+          <template v-for="[label, value] in infoRows" :key="label">
+            <dt class="text-foam/60">{{ label }}</dt>
+            <dd class="tabular-nums">{{ value }}</dd>
+          </template>
+        </dl>
+      </section>
+
+      <!-- Source video, in sync with the camera while traveling along the path. -->
+      <video
+        v-if="videoUrl && !videoFailed"
+        v-show="playback !== 'stopped'"
+        ref="video"
+        :src="videoUrl"
+        muted
+        playsinline
+        preload="auto"
+        aria-label="Transect video"
+        class="w-full rounded-lg border border-foam/20 shadow-lg"
+        @error="videoFailed = true"
+      />
+    </div>
 
     <div
       v-if="range"
