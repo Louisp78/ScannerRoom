@@ -195,7 +195,7 @@ by Jane Doe · ORCID 0000-0002-1825-0097
 
 Reconstruction stays local (it needs Apple Silicon). At the end of the ingest pipeline (`register` step in `vite-plugins/ingest.ts`), the transect is registered with `POST /api/transects`, using a personal API token created from the user's account, and owned by that user.
 
-Until then, and for the existing transects, `api/scripts/register-transect.ts` registers a transect, flags it showcase or private, and assigns its owner by login (`--owner orcid:<iD>`, once that person has signed in). In production: `docker exec scannerroom-api node scripts/register-transect.ts <key> [--showcase] [--owner provider:subject]`. A transect without owner is editable by admins only.
+Until then, each deploy registers every folder of `public/transects/` without owner (already registered transects are left untouched). `api/scripts/register-transect.ts` registers one or more transects, flags it showcase or private, and assigns its owner by login (`--owner orcid:<iD>`, once that person has signed in). In production: `docker exec scannerroom-api node scripts/register-transect.ts <key>... [--showcase] [--owner provider:subject]`. A transect without owner is editable by admins only.
 
 ## Impact on US-2.5 biome areas
 
@@ -212,7 +212,7 @@ The storage seam of `feat/us-2.5-biome-areas` is isolated in `src/biomes.ts` (`l
   - a `test-api` job runs the API tests against a Postgres service, and gates the deploy;
   - the deploy creates the `scannerroom` docker network, starts `scannerroom-db` once (kept across deploys, volume `scannerroom-pgdata`, init script copied to `~/scannerroom/db-init`), writes `~/scannerroom/api.env` (mode 600) from the secrets, then rebuilds and restarts `scannerroom-api` and the site, both on that network.
 - New GitHub secrets, **required before merging** (without `SESSION_SECRET` and the database passwords the API cannot start, and then even showcase files are refused): `DB_SUPERUSER_PASSWORD`, `DATABASE_PASSWORD`, `SESSION_SECRET` (`openssl rand -base64 48`), `ORCID_CLIENT_ID`, `ORCID_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `ADMIN_IDENTITIES`.
-- After the first deploy: `docker exec scannerroom-api node scripts/register-transect.ts site3-transect2-south-return --showcase`, and register `tab-south`.
+- After the first deploy: `docker exec scannerroom-api node scripts/register-transect.ts site3-transect2-south-return --showcase`.
 - `TRUST_PROXY_HOPS=3` (Cloudflare, VPS nginx, site nginx) only affects the client IP used by the rate limiter; to confirm on the VPS.
 - Nightly `pg_dump` cron with off-VPS copy.
 

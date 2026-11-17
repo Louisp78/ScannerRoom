@@ -1,13 +1,15 @@
 /**
- * Registers a transect in the database, or updates it.
+ * Registers transects in the database, or updates them.
  *
- *   node --env-file=.env scripts/register-transect.ts <key> [--showcase | --private] [--owner provider:subject]
+ *   node --env-file=.env scripts/register-transect.ts <key>... [--showcase | --private] [--owner provider:subject]
  *
+ * Without options an already registered transect is left untouched, so the deploy
+ * registers every deployed transect folder on each run.
  * --showcase makes its data readable without signing in (landing page embed);
  * --owner gives it to the user holding that login (they must have signed in once).
  */
 import { parseArgs } from 'node:util'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { connect, runMigrations } from '../src/db/client.ts'
 import { transects, userIdentities } from '../src/db/schema.ts'
 
@@ -19,10 +21,14 @@ const { positionals, values } = parseArgs({
     owner: { type: 'string' },
   },
 })
-const key = positionals[0]
-if (!key || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(key) || (values.showcase && values.private)) {
+const keyPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+if (
+  !positionals.length ||
+  !positionals.every((key) => keyPattern.test(key)) ||
+  (values.showcase && values.private)
+) {
   console.error(
-    'Usage: register-transect.ts <key> [--showcase | --private] [--owner provider:subject]',
+    'Usage: register-transect.ts <key>... [--showcase | --private] [--owner provider:subject]',
   )
   process.exit(1)
 }
@@ -47,11 +53,13 @@ try {
     ...(ownerId !== undefined && { ownerId }),
     ...(showcase !== undefined && { showcase }),
   }
-  const insert = db.insert(transects).values({ key, ownerId, showcase: showcase ?? false })
+  const insert = db
+    .insert(transects)
+    .values(positionals.map((key) => ({ key, ownerId, showcase: showcase ?? false })))
   await (Object.keys(changes).length
     ? insert.onConflictDoUpdate({ target: transects.key, set: changes })
     : insert.onConflictDoNothing())
-  console.log(await db.query.transects.findFirst({ where: eq(transects.key, key) }))
+  console.log(await db.query.transects.findMany({ where: inArray(transects.key, positionals) }))
 } finally {
   await pool.end()
 }
