@@ -41,26 +41,25 @@ failed=()
 for key in "${KEYS[@]}"; do
   echo "=== $key ($(date '+%H:%M'))"
   npz="$ROOT/out/lingbot/$key.npz"
-  # A reconstruction kept from a failed export is reused: only the export reruns.
+  # A reconstruction kept from a failed export is reused (with its frames): only the export reruns.
   if [ -s "$npz" ] && [ -s "$ROOT/frames/$key.json" ]; then
     reconstruct() { echo "Reusing $npz"; }
   else
-    # Frames only feed the reconstruction: free their disk before the export.
+    # Frames stay until the export, which takes its fine depth and colours from them.
     reconstruct() {
-      "$HERE/02-extract-frames.sh" "$key" && "$HERE/03-reconstruct.sh" "$key" && rm -rf "$ROOT/frames/$key"
+      "$HERE/02-extract-frames.sh" "$key" && "$HERE/03-reconstruct.sh" "$key"
     }
   fi
   if "$HERE/01-fetch-transect.sh" "$key" && reconstruct && "$HERE/04-export-web.sh" "$key" &&
     register "$key"; then
     echo "=== $key done ($(date '+%H:%M'))"
-    rm -rf "$ROOT/transects/$key.mp4" "$ROOT/frames/$key.json" "$npz"
+    rm -rf "$ROOT/transects/$key.mp4" "$ROOT/frames/$key" "$ROOT/frames/$key.json" "$npz"
   else
+    # The video, frames, sidecar and .npz stay (~3-5 GB), so a fixed export
+    # does not redo ~30 min of inference and still gets its fine depth.
     echo "=== $key FAILED ($(date '+%H:%M'))"
     failed+=("$key")
   fi
-  # On failure the video, sidecar and .npz stay (~3 GB), so a fixed export
-  # does not redo ~30 min of inference.
-  rm -rf "$ROOT/frames/$key"
 done
 
 [ ${#failed[@]} -eq 0 ] || { echo "Failed: ${failed[*]}" >&2; exit 1; }

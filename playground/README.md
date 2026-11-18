@@ -160,19 +160,42 @@ Cleaning chains four filters:
    few pixels because depth is unreliable on the reef silhouette ("flying"
    points).
 3. **Voxel grid**: one averaged point per voxel. Since the scale is arbitrary and
-   differs between reconstructions, the voxel edge is a fraction `VOXEL` (0.01 by
-   default) of the median depth of the confident pixels: the same relative
-   detail whatever the transect, and far points do not coarsen it. A long
-   transect would exceed what a browser loads comfortably, so past `MAX_POINTS`
-   (2 M by default) the voxels are merged into coarser ones until the cloud fits;
-   the viewer sizes the points from the final voxel edge. Frames are merged into
-   the grid one at a time, so the export stays at a few GB of RAM on ~1000
+   differs between reconstructions, the voxel edge is the footprint of one depth
+   pixel at the median depth of the confident pixels: as fine as the depth maps
+   go, the same relative detail whatever the transect, and far points do not
+   coarsen it. Past `MAX_DETAIL_POINTS` (12 M by default, ~108 MB on disk) the
+   voxels are merged into coarser ones until the cloud fits. Frames are merged
+   into the grid one at a time, so the export stays at a few GB of RAM on ~1000
    frames.
 4. **Isolated points**: statistical removal based on the distance to the 8
    nearest neighbours.
 
+**Fine depth.** LingBot-Map sees 518 px wide frames whatever the video. When the
+source frames are still in `frames/<key>/`, each depth map is refined at twice
+that resolution with Depth Anything V2 Small (Apache-2.0, ~0.4 s per frame on
+MPS) and the points are coloured from the source frames. The monocular depth is
+fitted to LingBot's per frame, LingBot keeps the shape above one 14 px model
+patch, and the result stays within 5 % of LingBot's depth (unclamped, the
+monocular model rebuilds low-confidence areas its own way). Cross-frame depth
+error is unchanged (site3 2.22 → 2.19 %, `tab-south` 8.93 → 8.88 %); coral
+branches and rock rims come out in relief. Without frames, the export falls back
+to the model's resolution.
+
+**Overview and detail tiles.** A browser cannot hold a full-detail transect, so
+the export writes two levels: `cloud.ply`, the detail regrouped into coarser
+voxels until it fits `MAX_POINTS` (2 M by default), loaded first; and
+`tiles/<i>.bin`, the full detail cut into tiles of at most 250 k points by
+recursive median splits along the longest side (9 bytes per point: uint16
+position within the tile box, uint8 sRGB colour). `path.json` lists each tile's
+box and the overview points it replaces. The viewer streams the tiles in view
+whose overview voxel covers more than 2 px on screen, nearest first, up to 4 M
+detail points at once. Before tiles, every deployed full-length transect hit the
+2 M budget at voxels of 1.4–3.2 % of the viewing distance, 5 to 10 model pixels
+per side; the detail level is now one model pixel (~0.3 %), or half of one with
+fine depth, within the storage budget.
+
 ```bash
-CONF=1.2 VOXEL=0.015 ./04-export-web.sh
+CONF=1.2 MAX_DETAIL_POINTS=8000000 ./04-export-web.sh
 ```
 
 ### Trap: the MLX port inverts the camera poses
