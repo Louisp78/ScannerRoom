@@ -13,6 +13,20 @@ export interface TransectPath {
   /** Timestamp of each frame in the source video, in seconds. */
   times: number[]
   reconstruction: ReconstructionInfo
+  /** Full-detail tiles streamed near the camera; absent or empty for older or small exports. */
+  tiles?: DetailTile[]
+}
+
+/** One spatial tile of the full-detail cloud (export-web.py, "detail tiles"). */
+export interface DetailTile {
+  /** Path of the tile file, relative to the transect folder. */
+  file: string
+  /** Bounding box, same frame as cloud.ply. */
+  min: [number, number, number]
+  max: [number, number, number]
+  points: number
+  /** Range (start, count) of the overview points of cloud.ply this tile replaces. */
+  base: [number, number]
 }
 
 /** How the 3D was built (export-web.py). Lengths in scene units, arbitrary scale. */
@@ -38,11 +52,41 @@ export interface ReconstructionInfo {
   depthScale: [number, number]
   pathLength: number
   medianDepth: number
+  /** Points and voxel edge of the full-detail cloud (the tiles); same as the overview's when it has no tiles. */
+  detailPoints?: number
+  detailVoxel?: number
+}
+
+/** Streaming state of one detail tile. */
+interface TileState {
+  tile: DetailTile
+  box: THREE.Box3
+  /** Overview points of the tile, hidden while its detail is shown. */
+  overview: THREE.Points
+  detail?: THREE.Points
+  loading: boolean
+  failed: boolean
 }
 
 /** Time labels along the path: the shortest of these steps giving at most MAX_LABELS. */
 const LABEL_STEPS_S = [10, 30, 60, 120, 300]
 const MAX_LABELS = 15
+
+/**
+ * Detail points held at once: 12 bytes each on the GPU (~50 MB), and the
+ * downloads stay bounded however long the transect.
+ */
+const DETAIL_BUDGET = 4_000_000
+/** A tile gets its detail once an overview voxel covers more than this on screen. */
+const DETAIL_MIN_PIXELS = 2
+const DETAIL_UPDATE_MS = 250
+const DETAIL_PARALLEL_LOADS = 2
+
+/** sRGB byte -> linear 0-65535: tile colours are sRGB, the renderer works in linear. */
+const SRGB_TO_LINEAR16 = Uint16Array.from({ length: 256 }, (_, i) =>
+  // Same conversion as PLYLoader applies to cloud.ply.
+  Math.round(new THREE.Color().setRGB(i / 255, 0, 0, THREE.SRGBColorSpace).r * 65535),
+)
 
 const ABYSS = 0x0a2e44
 const SCANNER = 0x2cd3d9
@@ -85,6 +129,13 @@ export class TransectScene {
   private following = false
   /** Orbit view saved when following starts, restored when it ends. */
   private overview?: { position: THREE.Vector3; target: THREE.Vector3 }
+  private tiles: TileState[] = []
+  private tilesUrl = ''
+  private overviewVoxel = 0
+  private detailMaterial?: THREE.PointsMaterial
+  private lastTileUpdate = 0
+  /** Cancels the tile downloads when the scene is disposed. */
+  private readonly aborter = new AbortController()
 
   /**
    * `embedded`: the viewer sits inside a scrolling page (e.g. the landing
@@ -153,11 +204,9 @@ export class TransectScene {
     const info = path.reconstruction
     // Twice the voxel edge closes the gaps between voxel centres without
     // blurring the reef, whatever the length of the transect.
-    const points = new THREE.Points(
-      cloud,
-      new THREE.PointsMaterial({ size: info.voxel * 2, vertexColors: true }),
-    )
-    this.world.add(points)
+    const material = new THREE.PointsMaterial({ size: info.voxel * 2, vertexColors: true })
+    if (path.tiles?.length) this.addTiles(baseUrl, path.tiles, cloud, material, info)
+    else this.world.add(new THREE.Points(cloud, material))
     // The scale is arbitrary: fit the clipping planes to this cloud.
     this.camera.near = info.medianDepth / 100
     this.camera.far = radius * 8
@@ -224,9 +273,11 @@ export class TransectScene {
   }
 
   dispose(): void {
+    this.aborter.abort()
     this.renderer.setAnimationLoop(null)
     this.resizeObserver.disconnect()
     this.controls.dispose()
+    this.detailMaterial?.dispose()
     this.scene.traverse((obj) => {
       if (obj instanceof THREE.Mesh || obj instanceof THREE.Points) {
         obj.geometry.dispose()
@@ -304,6 +355,135 @@ export class TransectScene {
     this.controls.update()
   }
 
+  /**
+   * One Points object per tile over the shared overview buffers (cloud.ply
+   * is sorted by tile), so a tile's overview can be hidden once its detail is in.
+   */
+  private addTiles(
+    baseUrl: string,
+    tiles: DetailTile[],
+    cloud: THREE.BufferGeometry,
+    material: THREE.PointsMaterial,
+    info: ReconstructionInfo,
+  ): void {
+    this.tilesUrl = baseUrl
+    this.overviewVoxel = info.voxel
+    this.detailMaterial = new THREE.PointsMaterial({
+      size: (info.detailVoxel ?? info.voxel) * 2,
+      vertexColors: true,
+    })
+    this.tiles = tiles.map((tile) => {
+      const geometry = new THREE.BufferGeometry()
+      geometry.setAttribute('position', cloud.getAttribute('position'))
+      geometry.setAttribute('color', cloud.getAttribute('color'))
+      geometry.setDrawRange(...tile.base)
+      const overview = new THREE.Points(geometry, material)
+      this.world.add(overview)
+      const box = new THREE.Box3(new THREE.Vector3(...tile.min), new THREE.Vector3(...tile.max))
+      return { tile, box, overview, loading: false, failed: false }
+    })
+  }
+
+  /**
+   * Streams detail in where the overview is visibly coarse: tiles in view
+   * whose overview voxel spans more than DETAIL_MIN_PIXELS on screen, nearest
+   * first, within DETAIL_BUDGET points. Loaded tiles are only evicted to make
+   * room, so orbiting back and forth does not reload them.
+   */
+  private updateTiles(): void {
+    if (!this.tiles.length || this.aborter.signal.aborted) return
+    this.world.updateMatrixWorld()
+    const eye = this.world.worldToLocal(this.camera.position.clone())
+    const frustum = new THREE.Frustum().setFromProjectionMatrix(
+      new THREE.Matrix4()
+        .multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse)
+        .multiply(this.world.matrixWorld),
+    )
+    // Screen pixels per scene unit, at unit distance.
+    const pixels =
+      this.renderer.domElement.height / 2 / Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2))
+    const distance = new Map(this.tiles.map((t) => [t, t.box.distanceToPoint(eye)]))
+    const wanted = this.tiles
+      .filter(
+        (t) =>
+          !t.failed &&
+          frustum.intersectsBox(t.box) &&
+          (this.overviewVoxel * pixels) / Math.max(distance.get(t)!, 1e-9) > DETAIL_MIN_PIXELS,
+      )
+      .sort((a, b) => distance.get(a)! - distance.get(b)!)
+    const keep = new Set<TileState>()
+    let kept = 0
+    for (const t of wanted) {
+      if (kept + t.tile.points > DETAIL_BUDGET) break
+      keep.add(t)
+      kept += t.tile.points
+    }
+
+    let loading = this.tiles.filter((t) => t.loading).length
+    for (const t of keep) {
+      if (t.detail || t.loading) continue
+      if (loading >= DETAIL_PARALLEL_LOADS) break
+      // Make room: evict the farthest tiles no longer kept.
+      const held = () =>
+        this.tiles.reduce((n, s) => n + (s.detail || s.loading ? s.tile.points : 0), 0)
+      const evictable = this.tiles
+        .filter((s) => s.detail && !keep.has(s))
+        .sort((a, b) => distance.get(b)! - distance.get(a)!)
+      while (held() + t.tile.points > DETAIL_BUDGET && evictable.length)
+        this.unloadTile(evictable.shift()!)
+      if (held() + t.tile.points > DETAIL_BUDGET) break
+      void this.loadTile(t)
+      loading++
+    }
+  }
+
+  private async loadTile(t: TileState): Promise<void> {
+    t.loading = true
+    try {
+      const response = await fetch(`${this.tilesUrl}/${t.tile.file}`, {
+        signal: this.aborter.signal,
+      })
+      if (!response.ok) throw new Error(`${t.tile.file}: HTTP ${response.status}`)
+      const buffer = await response.arrayBuffer()
+      const n = t.tile.points
+      // Layout (export-web.py): n x 3 uint16 positions within the box, then n x 3 uint8 sRGB colours.
+      const srgb = new Uint8Array(buffer, n * 6, n * 3)
+      const colors = new Uint16Array(n * 3)
+      for (let i = 0; i < colors.length; i++) colors[i] = SRGB_TO_LINEAR16[srgb[i]!]!
+      const geometry = new THREE.BufferGeometry()
+      geometry.setAttribute(
+        'position',
+        new THREE.BufferAttribute(new Uint16Array(buffer, 0, n * 3), 3, true),
+      )
+      geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3, true))
+      const detail = new THREE.Points(geometry, this.detailMaterial)
+      // Positions are 0-1 within the box: place and stretch the tile onto it.
+      detail.position.copy(t.box.min)
+      detail.scale
+        .copy(t.box.getSize(new THREE.Vector3()))
+        .max(new THREE.Vector3(1e-12, 1e-12, 1e-12))
+      if (this.aborter.signal.aborted) return geometry.dispose()
+      t.detail = detail
+      t.overview.visible = false
+      this.world.add(detail)
+    } catch (error) {
+      if (this.aborter.signal.aborted) return
+      // Keep the overview for this tile; do not retry on every update.
+      t.failed = true
+      console.warn('Detail tile failed to load', error)
+    } finally {
+      t.loading = false
+    }
+  }
+
+  private unloadTile(t: TileState): void {
+    if (!t.detail) return
+    this.world.remove(t.detail)
+    t.detail.geometry.dispose()
+    t.detail = undefined
+    t.overview.visible = true
+  }
+
   private resize(): void {
     const { clientWidth: w, clientHeight: h } = this.host
     if (!w || !h) return
@@ -317,6 +497,11 @@ export class TransectScene {
     // OrbitControls.update() re-aims the camera at its target even when
     // disabled, which would fight the diver's-eye view.
     if (!this.following) this.controls.update()
+    const now = performance.now()
+    if (now - this.lastTileUpdate > DETAIL_UPDATE_MS) {
+      this.lastTileUpdate = now
+      this.updateTiles()
+    }
     this.renderer.render(this.scene, this.camera)
     this.labelRenderer.render(this.scene, this.camera)
   }
