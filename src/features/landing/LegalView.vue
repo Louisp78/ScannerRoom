@@ -1,17 +1,3 @@
-<script setup lang="ts">
-// Legal notice, terms of use and privacy policy (French LCEN and GDPR), one page
-// with an anchor per section. Keep the privacy section in line with what the API
-// actually stores (api/src/db/schema.ts) whenever the data model changes.
-const CONTACT_EMAIL = 'lgup.official@gmail.com'
-const LAST_UPDATED = '11 November 2026'
-
-const sections = [
-  { id: 'notice', title: 'Legal notice' },
-  { id: 'terms', title: 'Terms of use' },
-  { id: 'privacy', title: 'Privacy policy' },
-]
-</script>
-
 <template>
   <div class="relative isolate min-h-svh px-4 py-6 sm:py-10">
     <div
@@ -158,6 +144,20 @@ const sections = [
     </main>
   </div>
 </template>
+
+<script setup lang="ts">
+// Legal notice, terms of use and privacy policy (French LCEN and GDPR), one page
+// with an anchor per section. Keep the privacy section in line with what the API
+// actually stores (its database schema) whenever the data model changes.
+const CONTACT_EMAIL = 'lgup.official@gmail.com'
+const LAST_UPDATED = '11 November 2026'
+
+const sections = [
+  { id: 'notice', title: 'Legal notice' },
+  { id: 'terms', title: 'Terms of use' },
+  { id: 'privacy', title: 'Privacy policy' },
+]
+</script>
 
 <style scoped>
 .legal section {

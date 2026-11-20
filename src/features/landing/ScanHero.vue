@@ -1,3 +1,7 @@
+<template>
+  <canvas ref="canvas" class="h-full w-full" aria-hidden="true" />
+</template>
+
 <script setup lang="ts">
 /**
  * Decorative hero animation: a synthetic seabed point cloud revealed by a
@@ -169,7 +173,3 @@ onBeforeUnmount(() => {
   resizeObserver?.disconnect()
 })
 </script>
-
-<template>
-  <canvas ref="canvas" class="h-full w-full" aria-hidden="true" />
-</template>

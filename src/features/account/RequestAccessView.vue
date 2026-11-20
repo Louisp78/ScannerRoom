@@ -1,48 +1,3 @@
-<script setup lang="ts">
-import { reactive, ref } from 'vue'
-
-/** Inbox receiving access requests; the static site has no backend, so the form hands off to mailto. */
-const CONTACT_EMAIL = 'lgup.official@gmail.com'
-
-const form = reactive({
-  name: '',
-  email: '',
-  organisation: '',
-  footage: '',
-  message: '',
-})
-const sent = ref(false)
-
-const pillars = [
-  {
-    title: 'An individual initiative',
-    text: 'ScannerRoom is built and maintained by one independent developer, not a company or a lab.',
-  },
-  {
-    title: 'Free for whoever needs it',
-    text: 'Researchers, NGOs, students, divers: if your work benefits from a 3D reef, you get access at no cost.',
-  },
-  {
-    title: 'Real costs behind the scenes',
-    text: 'GPU reconstruction, storage and hosting are paid out of pocket. Every request shows the project is worth keeping alive.',
-  },
-]
-
-function submit() {
-  const body = [
-    `Name: ${form.name}`,
-    `Email: ${form.email}`,
-    `Organisation: ${form.organisation || '-'}`,
-    `Footage to reconstruct: ${form.footage || '-'}`,
-    '',
-    form.message,
-  ].join('\n')
-  const subject = `ScannerRoom access request - ${form.name}`
-  window.location.href = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-  sent.value = true
-}
-</script>
-
 <template>
   <div class="relative isolate min-h-svh overflow-x-hidden">
     <div
@@ -202,6 +157,51 @@ function submit() {
     </main>
   </div>
 </template>
+
+<script setup lang="ts">
+import { reactive, ref } from 'vue'
+
+/** Inbox receiving access requests; the static site has no backend, so the form hands off to mailto. */
+const CONTACT_EMAIL = 'lgup.official@gmail.com'
+
+const form = reactive({
+  name: '',
+  email: '',
+  organisation: '',
+  footage: '',
+  message: '',
+})
+const sent = ref(false)
+
+const pillars = [
+  {
+    title: 'An individual initiative',
+    text: 'ScannerRoom is built and maintained by one independent developer, not a company or a lab.',
+  },
+  {
+    title: 'Free for whoever needs it',
+    text: 'Researchers, NGOs, students, divers: if your work benefits from a 3D reef, you get access at no cost.',
+  },
+  {
+    title: 'Real costs behind the scenes',
+    text: 'GPU reconstruction, storage and hosting are paid out of pocket. Every request shows the project is worth keeping alive.',
+  },
+]
+
+function submit() {
+  const body = [
+    `Name: ${form.name}`,
+    `Email: ${form.email}`,
+    `Organisation: ${form.organisation || '-'}`,
+    `Footage to reconstruct: ${form.footage || '-'}`,
+    '',
+    form.message,
+  ].join('\n')
+  const subject = `ScannerRoom access request - ${form.name}`
+  window.location.href = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+  sent.value = true
+}
+</script>
 
 <style scoped>
 .rise {

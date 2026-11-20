@@ -1,28 +1,3 @@
-<script setup lang="ts">
-// Signed-in user in the atlas header: name, ORCID linking, profile, sign-out (US-4.1).
-import { onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { getMe, getProviders, signInUrl, signOut, type SessionUser } from '@/api'
-
-const route = useRoute()
-const router = useRouter()
-const user = ref<SessionUser>()
-/** ORCID is offered for linking when enabled and not linked yet: it credits the user's transects. */
-const canLinkOrcid = ref(false)
-const open = ref(false)
-
-onMounted(async () => {
-  user.value = await getMe()
-  if (user.value && !user.value.orcidId)
-    canLinkOrcid.value = (await getProviders()).includes('orcid')
-})
-
-async function onSignOut() {
-  await signOut()
-  await router.push('/')
-}
-</script>
-
 <template>
   <div v-if="user" class="relative">
     <button
@@ -85,3 +60,28 @@ async function onSignOut() {
     </div>
   </div>
 </template>
+
+<script setup lang="ts">
+// Signed-in user in the atlas header: name, ORCID linking, profile, sign-out (US-4.1).
+import { onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { getMe, getProviders, signInUrl, signOut, type SessionUser } from '@/shared/api'
+
+const route = useRoute()
+const router = useRouter()
+const user = ref<SessionUser>()
+/** ORCID is offered for linking when enabled and not linked yet: it credits the user's transects. */
+const canLinkOrcid = ref(false)
+const open = ref(false)
+
+onMounted(async () => {
+  user.value = await getMe()
+  if (user.value && !user.value.orcidId)
+    canLinkOrcid.value = (await getProviders()).includes('orcid')
+})
+
+async function onSignOut() {
+  await signOut()
+  await router.push('/')
+}
+</script>

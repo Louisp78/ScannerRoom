@@ -10,10 +10,9 @@ export interface Site {
   lon: number
 }
 
-// The list lives in sites.json so that the local ingest tool (vite-plugins/ingest.ts)
-// and playground/scripts/build-catalog.sh can append to it. NOAA transects are
-// placed at their site's position from the accession metadata (see
-// playground/README.md): the transects of a site share it.
+// The list lives in a JSON file so that the local ingest tool and the pipeline's
+// catalog build can append to it. NOAA transects are placed at their site's
+// position from the accession metadata: the transects of a site share it.
 export const SITES: Site[] = sites
 
 /** Hemisphere-suffixed coordinates, e.g. "19.645° N · 156.025° W". */

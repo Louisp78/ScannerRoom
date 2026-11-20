@@ -39,7 +39,7 @@ cd playground/scripts
 ```
 
 `./build-catalog.sh [key ...]` chains the four steps for catalog transects (all
-of them by default), adds each one to `src/sites.json` with its site position,
+of them by default), adds each one to the site catalog with its site position,
 and deletes the transect's intermediates (video, frames, `.npz`: 3 to 4 GB)
 before starting the next. Strictly one at a time: a full-length reconstruction
 uses most of the RAM of a 16-18 GB Mac. Count ~45 min per 12 min transect on an
@@ -88,8 +88,8 @@ It is a **direct prediction**, with no feature matching or bundle adjustment:
 about 2 s per image on an M3 Pro, where classic photogrammetry often failed on
 underwater haze and blur.
 
-`03-reconstruct.sh` runs `scripts/reconstruct.py` rather than the port's
-`create_map.py`: same model, settings and streaming inference, but memory stays
+The reconstruct step runs our own script rather than the port's map
+builder: same model, settings and streaming inference, but memory stays
 bounded on ~1000 frames. Frames are loaded as uint8 (the port goes through
 float32 copies, ~7 GB at 1000 frames), MLX's buffer cache is capped (it otherwise
 keeps every freed buffer), and the port's exports are skipped: they unproject

@@ -123,7 +123,7 @@ export class GlobeScene {
 
   /**
    * Paints the sphere from an equirectangular depth-band texture
-   * (see playground/scripts/bake-bathymetry.py): flat land, shaded ocean
+   * (baked by the playground bathymetry script): flat land, shaded ocean
    * bands with a thin contour line between them, and the coastline drawn from
    * the same data so it always matches the seafloor.
    */

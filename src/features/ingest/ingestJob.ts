@@ -1,4 +1,4 @@
-/** Contract of the local ingest endpoint (vite-plugins/ingest.ts), shared with IngestView. */
+/** Contract of the local ingest endpoint, shared by the dev server plugin and the page. */
 export const INGEST_ROUTE = '/__ingest/job'
 
 export type IngestStep = 'upload' | 'extract' | 'reconstruct' | 'export' | 'register'

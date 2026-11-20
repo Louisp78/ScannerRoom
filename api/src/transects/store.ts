@@ -11,7 +11,7 @@ export interface TransectRecord {
   contributor: UserSummary | null
 }
 
-/** Database access for transects; the HTTP side lives in ./routes.ts. */
+/** Database access for transects; the HTTP side is kept apart. */
 export function createTransectStore(db: Db) {
   async function find(key: string): Promise<TransectRecord | undefined> {
     const [row] = await db

@@ -91,7 +91,7 @@ jobs:
           rm: true
           overwrite: true
 
-      # Container topology and steps live in deploy/vps.sh.
+      # Container topology and steps live in the VPS deploy script.
       - name: Build and serve on VPS
         uses: appleboy/ssh-action@v1
         env:

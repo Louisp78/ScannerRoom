@@ -39,5 +39,5 @@ __screenshots__/
 # Vite
 *.timestamp-*-*.mjs
 
-# Exported transect data: lives on the VPS only (deploy/publish-transect.sh).
+# Exported transect data: lives on the VPS only (published by the deploy scripts).
 /public/transects/

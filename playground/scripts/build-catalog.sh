@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Build transects of the 01-fetch-transect.sh catalog end to end, one at a time,
-# and put them on the map (src/sites.json).
+# Build transects of the fetch step's catalog end to end, one at a time,
+# and put them on the map (site catalog).
 #
 # Strictly sequential: a full-length transect takes ~1000 frames, the
 # reconstruction alone fills most of the RAM and the GPU, and the intermediates
@@ -14,7 +14,7 @@ set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
-SITES="$ROOT/../src/sites.json"
+SITES="$ROOT/../src/shared/sites.json"
 KEYS=("$@")
 [ ${#KEYS[@]} -gt 0 ] || KEYS=($("$HERE/01-fetch-transect.sh" --list | cut -f1))
 

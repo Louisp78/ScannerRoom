@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { getMe, getTransect } from '@/api'
-import LandingView from '../views/LandingView.vue'
+import { getMe, getTransect } from '@/shared/api'
+import LandingView from '@/features/landing/LandingView.vue'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -24,42 +24,47 @@ const router = createRouter({
       name: 'explore',
       meta: { requiresAuth: true },
       // Lazy: the globe pulls in three.js, which the landing page does not need.
-      component: () => import('../views/ExploreView.vue'),
+      component: () => import('@/features/explore/ExploreView.vue'),
     },
     {
       path: '/transects/:transectKey',
       name: 'transect',
       meta: { requiresAuth: true },
       // Lazy: three.js and the viewer only load when a transect is opened (US-2.3).
-      component: () => import('../views/TransectView.vue'),
+      component: () => import('@/features/transect/TransectView.vue'),
       props: true,
     },
     {
       path: '/profile',
       name: 'profile',
       meta: { requiresAuth: true },
-      component: () => import('../views/ProfileView.vue'),
+      component: () => import('@/features/account/ProfileView.vue'),
     },
     {
       path: '/sign-in',
       name: 'sign-in',
-      component: () => import('../views/SignInView.vue'),
+      component: () => import('@/features/account/SignInView.vue'),
     },
     {
       path: '/legal',
       name: 'legal',
-      component: () => import('../views/LegalView.vue'),
+      component: () => import('@/features/landing/LegalView.vue'),
     },
     {
       path: '/request-access',
       name: 'request-access',
-      component: () => import('../views/RequestAccessView.vue'),
+      component: () => import('@/features/account/RequestAccessView.vue'),
     },
-    // Local ingest tool: its endpoint only exists on the dev server
-    // (vite-plugins/ingest.ts), so the page is left out of production builds;
+    // Local ingest tool: its endpoint only exists on the dev server, so the page is left out of production builds;
     // there, "Add a transect" leads to the access request page instead.
     ...(import.meta.env.DEV
-      ? [{ path: '/ingest', name: 'ingest', component: () => import('../views/IngestView.vue') }]
+      ? [
+          {
+            path: '/ingest',
+            name: 'ingest',
+            component: () => import('@/features/ingest/IngestView.vue'),
+          },
+        ]
       : []),
   ],
 })

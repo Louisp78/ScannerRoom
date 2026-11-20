@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install LingBot-Map (MLX port, Apple Silicon) into playground/vendor/.
+# Install LingBot-Map (MLX port, Apple Silicon) into the playground's vendor folder.
 #
 # Clones the port at a pinned commit and creates a Python 3.10 venv next to it.
 # The FP16 weights (2.2 GB) are fetched from Hugging Face by create_map.py on its

@@ -60,7 +60,7 @@ npm run dev   # then http://localhost:5173/ingest ("Add a transect" on the map)
 
 The form takes the video, a name, a key (folder name), the site position and
 the excerpt to reconstruct. It runs the pipeline steps on the dev server and
-adds the site to `src/sites.json`. One job at a time; the page only exists on the
+adds the site to the site catalog. One job at a time; the page only exists on the
 dev server.
 
 Or from the scripts, for the NOAA catalog:
@@ -75,7 +75,7 @@ Count about 45 min per 12 min transect on an M3 Pro, strictly one at a time.
 Each step can also be run on its own; see the
 [pipeline documentation](playground/README.md) for the steps and their settings.
 
-Both paths write `public/transects/<key>/` and the `src/sites.json` entry.
+Both paths write the transect's data folder and its site catalog entry.
 
 ### 2. Publish it
 
@@ -85,7 +85,7 @@ deploy/publish-transect.sh <key>...
 
 It uploads the folder to `~/scannerroom/transects/<key>/` on the VPS (only the
 changed files, so re-publishing after a re-export is cheap) and registers the
-transect in the database. Then commit `src/sites.json` and open a pull request:
+transect in the database. Then commit the site catalog entry and open a pull request:
 the point appears on the map once it is deployed. Always publish the data
 before the `sites.json` entry that points to it.
 
@@ -111,7 +111,7 @@ Changes to the reconstruction or the export must work for every transect:
 
 - no per-transect parameters, thresholds or tweaks: derive values from the data
   itself (relative to the median depth, in seconds of video...);
-- data processing belongs in the export (`playground/scripts/export-web.py`); the
+- data processing belongs in the pipeline's web export; the
   viewer only renders;
 - validate a change on at least two transects and check it does not regress the
   others.
@@ -128,7 +128,7 @@ Changes to the reconstruction or the export must work for every transect:
 ## Deployment
 
 Merging to `main` deploys: CI runs the checks, uploads the source to the VPS and
-runs [`deploy/vps.sh`](deploy/vps.sh), which rebuilds the site and API
-containers. The database and the transect data (`~/scannerroom/transects/`)
+runs the VPS deploy script, which rebuilds the site and API
+containers. The database and the transect data
 persist across deploys; the data is mounted read-only into the site container,
 whose nginx only serves it to signed-in users (or for showcase transects).
