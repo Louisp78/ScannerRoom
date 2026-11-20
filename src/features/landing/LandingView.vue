@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { defineAsyncComponent, onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue'
 import type { Directive } from 'vue'
-import ScanHero from '@/components/ScanHero.vue'
-import { formatLatLon, type Site, SITES } from '@/sites'
+import ScanHero from './ScanHero.vue'
+import { formatLatLon, type Site, SITES } from '@/shared/sites'
 
 /**
  * Fades an element in the first time it scrolls into view. Elements start
@@ -96,7 +96,7 @@ const featured = SITES.find((site) => site.transectKey === 'site3-transect2-sout
 
 // three.js and the ~20 MB point cloud only load once the showcase nears the
 // viewport (US-2.3), so the top of the landing page stays light.
-const TransectViewer = defineAsyncComponent(() => import('@/components/TransectViewer.vue'))
+const TransectViewer = defineAsyncComponent(() => import('@/features/transect/TransectViewer.vue'))
 const showcase = useTemplateRef<HTMLElement>('showcase')
 const showcaseActive = ref(false)
 let showcaseObserver: IntersectionObserver | undefined

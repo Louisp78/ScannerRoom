@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Admin control in the viewer badge: reassign the transect to another user (US-4.1).
 import { ref } from 'vue'
-import { getUsers, setContributor, type TransectDetails, type UserSummary } from '@/api'
+import { getUsers, setContributor, type TransectDetails, type UserSummary } from '@/shared/api'
 
 const props = defineProps<{ transectKey: string; contributor: TransectDetails['contributor'] }>()
 const emit = defineEmits<{ changed: [contributor: TransectDetails['contributor']] }>()

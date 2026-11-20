@@ -60,7 +60,7 @@ npm run dev   # then http://localhost:5173/ingest ("Add a transect" on the map)
 
 The form takes the video, a name, a key (folder name), the site position and
 the excerpt to reconstruct. It runs the pipeline steps on the dev server and
-adds the site to `src/sites.json`. One job at a time; the page only exists on the
+adds the site to `src/shared/sites.json`. One job at a time; the page only exists on the
 dev server.
 
 Or from the scripts, for the NOAA catalog:
@@ -75,7 +75,7 @@ Count about 45 min per 12 min transect on an M3 Pro, strictly one at a time.
 Each step can also be run on its own; see the
 [pipeline documentation](playground/README.md) for the steps and their settings.
 
-Both paths write `public/transects/<key>/` and the `src/sites.json` entry.
+Both paths write `public/transects/<key>/` and the `src/shared/sites.json` entry.
 
 ### 2. Publish it
 
@@ -85,7 +85,7 @@ deploy/publish-transect.sh <key>...
 
 It uploads the folder to `~/scannerroom/transects/<key>/` on the VPS (only the
 changed files, so re-publishing after a re-export is cheap) and registers the
-transect in the database. Then commit `src/sites.json` and open a pull request:
+transect in the database. Then commit `src/shared/sites.json` and open a pull request:
 the point appears on the map once it is deployed. Always publish the data
 before the `sites.json` entry that points to it.
 

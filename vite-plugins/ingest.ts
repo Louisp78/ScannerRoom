@@ -6,7 +6,7 @@
  * do, so these endpoints only exist on the Vite dev server (`apply: 'serve'`) and
  * never ship in the production build. The output is public/transects/<key>/
  * (not committed, published with deploy/publish-transect.sh) and the
- * src/sites.json entry (committed).
+ * src/shared/sites.json entry (committed).
  *
  * API, one job at a time since the reconstruction saturates the GPU:
  *   POST /__ingest/job?key&name&lat&lon&fps&start&duration  body: the raw video
@@ -19,8 +19,8 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import path from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import type { Plugin } from 'vite'
-import { INGEST_ROUTE, type IngestJob, type IngestStep } from '../src/ingestJob'
-import type { Site } from '../src/sites'
+import { INGEST_ROUTE, type IngestJob, type IngestStep } from '../src/features/ingest/ingestJob'
+import type { Site } from '../src/shared/sites'
 
 interface IngestParams {
   key: string
@@ -44,7 +44,7 @@ export function ingest(): Plugin {
   const paths = () => ({
     scripts: path.join(root, 'playground/scripts'),
     video: (key: string) => path.join(root, 'playground/transects', `${key}.mp4`),
-    sites: path.join(root, 'src/sites.json'),
+    sites: path.join(root, 'src/shared/sites.json'),
   })
 
   function appendLog(chunk: string) {

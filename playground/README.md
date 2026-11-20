@@ -39,7 +39,7 @@ cd playground/scripts
 ```
 
 `./build-catalog.sh [key ...]` chains the four steps for catalog transects (all
-of them by default), adds each one to `src/sites.json` with its site position,
+of them by default), adds each one to `src/shared/sites.json` with its site position,
 and deletes the transect's intermediates (video, frames, `.npz`: 3 to 4 GB)
 before starting the next. Strictly one at a time: a full-length reconstruction
 uses most of the RAM of a 16-18 GB Mac. Count ~45 min per 12 min transect on an

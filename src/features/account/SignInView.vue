@@ -3,7 +3,7 @@
 // API, which brings it back to `redirect` once signed in.
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { getProviders, signInUrl, type Provider } from '@/api'
+import { getProviders, signInUrl, type Provider } from '@/shared/api'
 
 const route = useRoute()
 

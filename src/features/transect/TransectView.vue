@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import TransectViewer from '@/components/TransectViewer.vue'
-import { SITES } from '@/sites'
+import TransectViewer from './TransectViewer.vue'
+import { SITES } from '@/shared/sites'
 
 const props = defineProps<{
   /** Transect key, i.e. the folder name under public/transects/. */

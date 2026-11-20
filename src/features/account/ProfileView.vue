@@ -1,9 +1,9 @@
 <script setup lang="ts">
 // Signed-in user's profile: identity, number of contributions and their list (US-4.1).
 import { onMounted, ref } from 'vue'
-import AccountMenu from '@/components/AccountMenu.vue'
-import { getMe, getMyTransects, type OwnTransect, type SessionUser } from '@/api'
-import { formatLatLon, SITES } from '@/sites'
+import AccountMenu from './AccountMenu.vue'
+import { getMe, getMyTransects, type OwnTransect, type SessionUser } from '@/shared/api'
+import { formatLatLon, SITES } from '@/shared/sites'
 
 const user = ref<SessionUser>()
 const contributions = ref<OwnTransect[]>()

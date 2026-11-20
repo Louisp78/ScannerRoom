@@ -8,7 +8,7 @@
 #
 # Only changed files are sent, and files removed locally are removed on the VPS,
 # so re-publishing after a re-export is cheap. Publish the data before pushing
-# the src/sites.json entry that points to it. The VPS is reached through the ssh
+# the src/shared/sites.json entry that points to it. The VPS is reached through the ssh
 # host $SCANNERROOM_SSH (default: louisplace-app).
 set -euo pipefail
 

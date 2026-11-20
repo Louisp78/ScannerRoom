@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue'
 import { useRouter } from 'vue-router'
-import { type Site, SITES } from '@/sites'
-import { GlobeScene } from '@/viewer/globeScene'
+import { type Site, SITES } from '@/shared/sites'
+import { GlobeScene } from './globeScene'
 
 const router = useRouter()
 const host = useTemplateRef<HTMLDivElement>('host')

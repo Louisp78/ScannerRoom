@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
-import { getMe, getTransect, type TransectDetails } from '@/api'
+import { getMe, getTransect, type TransectDetails } from '@/shared/api'
 import ContributorPicker from './ContributorPicker.vue'
-import { formatLatLon, type Site } from '@/sites'
-import { formatTime, type ReconstructionInfo, TransectScene } from '@/viewer/transectScene'
+import { formatLatLon, type Site } from '@/shared/sites'
+import { formatTime, type ReconstructionInfo, TransectScene } from './transectScene'
 
 const props = defineProps<{
   /** Folder under public/ holding cloud.ply and path.json. */

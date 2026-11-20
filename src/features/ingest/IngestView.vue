@@ -11,7 +11,7 @@ import {
   useTemplateRef,
   watch,
 } from 'vue'
-import { INGEST_ROUTE, type IngestJob, type IngestStep } from '@/ingestJob'
+import { INGEST_ROUTE, type IngestJob, type IngestStep } from './ingestJob'
 
 const STEPS: { step: IngestStep; label: string }[] = [
   { step: 'upload', label: 'Uploading the video' },
@@ -152,8 +152,8 @@ onBeforeUnmount(stopPolling)
       <form class="flex flex-col gap-4" @submit.prevent="submit">
         <p class="text-sm text-foam/70">
           The reconstruction runs on this Mac (MLX). Once done, the site shows up on the local map;
-          commit <code>public/transects/&lt;key&gt;/</code> and <code>src/sites.json</code> to
-          publish it.
+          commit <code>public/transects/&lt;key&gt;/</code> and
+          <code>src/shared/sites.json</code> to publish it.
         </p>
 
         <label class="flex flex-col gap-1 text-sm">
@@ -320,7 +320,7 @@ onBeforeUnmount(stopPolling)
 </template>
 
 <style scoped>
-@reference '@/assets/main.css';
+@reference '@/shared/assets/main.css';
 
 .field {
   @apply rounded border border-foam/20 bg-black/20 px-3 py-1.5 text-foam disabled:opacity-50;

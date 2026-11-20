@@ -88,7 +88,7 @@ api/
 docker-compose.yml    local Postgres
 ```
 
-`api/src/contract.ts` holds the API's response types; the viewer imports them as types only (`src/api.ts`). Once US-2.5 is rebased, the `Area` Zod schema joins it and is shared the same way.
+`api/src/contract.ts` holds the API's response types; the viewer imports them as types only (`src/shared/api.ts`). Once US-2.5 is rebased, the `Area` Zod schema joins it and is shared the same way.
 
 ### Auth: what the libraries do, what we write
 
@@ -174,7 +174,7 @@ Security on every write:
 - **Enforced by the server, not only by the router.** A Vue Router guard (`beforeEach`, `GET /api/me` cached once) redirects to `/sign-in?redirect=…` for a clean UX, but the real protection is nginx `auth_request` on the data files and session checks in the API. The SPA HTML and JS bundle stay public; they hold no data.
 - **Showcase transects** (`transects.showcase = true`) keep the landing page working: its embedded viewer loads the featured transect without a session. nginx forwards the original URI to `/api/auth/check`, which answers 204 for a showcase transect's files.
 - **Never cached by Cloudflare.** Protected files are served with `Cache-Control: private, no-store`: an edge copy (Cloudflare caches `.mp4` by default) would otherwise be served to anyone, bypassing the check.
-- **Site summaries stay public as a teaser.** The landing page keeps showing every site's name and position, as it does today: `src/sites.json` stays in the bundle. What is protected is the data itself (point cloud, path, video, areas) and the atlas and viewer pages.
+- **Site summaries stay public as a teaser.** The landing page keeps showing every site's name and position, as it does today: `src/shared/sites.json` stays in the bundle. What is protected is the data itself (point cloud, path, video, areas) and the atlas and viewer pages.
 
 ## Contributor in the viewer
 

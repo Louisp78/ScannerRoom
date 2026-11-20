@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import AccountMenu from '@/components/AccountMenu.vue'
-import WorldGlobe from '@/components/WorldGlobe.vue'
-import { SITES } from '@/sites'
+import AccountMenu from '@/features/account/AccountMenu.vue'
+import WorldGlobe from './WorldGlobe.vue'
+import { SITES } from '@/shared/sites'
 
 // The upload tool only runs on the dev server; production visitors request access instead.
 const addTransectRoute = import.meta.env.DEV ? '/ingest' : '/request-access'

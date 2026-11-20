@@ -2,7 +2,7 @@
 // Signed-in user in the atlas header: name, ORCID linking, profile, sign-out (US-4.1).
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getMe, getProviders, signInUrl, signOut, type SessionUser } from '@/api'
+import { getMe, getProviders, signInUrl, signOut, type SessionUser } from '@/shared/api'
 
 const route = useRoute()
 const router = useRouter()
