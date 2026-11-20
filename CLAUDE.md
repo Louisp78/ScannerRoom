@@ -8,10 +8,11 @@
 
 ## Front-end structure
 
-- the front end is split into the app shell (entry, root component, routing), one folder per product feature, and shared code
+- the front end is split into the app shell (entry, root component, routing), one folder per product feature, shared code, and assets
 - the app shell only wires features together; it holds no feature logic
 - code used by a single feature lives in that feature; it moves to shared only once a second feature needs it
-- shared UI (design system, common components) lives in shared, never inside a feature
+- shared code (common components, API client, site catalog) lives in shared, never inside a feature
+- assets (global styles, design system, images) stay apart from code, outside shared
 - Vue single-file components are ordered template, then script, then style (enforced by the linter)
 
 ## Transect pipeline rules

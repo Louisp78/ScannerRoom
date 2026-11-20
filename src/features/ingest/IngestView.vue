@@ -320,7 +320,7 @@ onBeforeUnmount(stopPolling)
 </script>
 
 <style scoped>
-@reference '@/shared/assets/main.css';
+@reference '@/assets/main.css';
 
 .field {
   @apply rounded border border-foam/20 bg-black/20 px-3 py-1.5 text-foam disabled:opacity-50;
