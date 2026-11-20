@@ -1,3 +1,12 @@
+<template>
+  <div class="relative h-full w-full overflow-hidden">
+    <div ref="host" class="absolute inset-0" />
+    <p v-if="error" class="absolute inset-x-0 bottom-4 text-center text-foam" role="alert">
+      Could not load the globe: {{ error }}
+    </p>
+  </div>
+</template>
+
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue'
 import { useRouter } from 'vue-router'
@@ -113,12 +122,3 @@ onMounted(async () => {
 
 onBeforeUnmount(() => scene?.dispose())
 </script>
-
-<template>
-  <div class="relative h-full w-full overflow-hidden">
-    <div ref="host" class="absolute inset-0" />
-    <p v-if="error" class="absolute inset-x-0 bottom-4 text-center text-foam" role="alert">
-      Could not load the globe: {{ error }}
-    </p>
-  </div>
-</template>

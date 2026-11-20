@@ -1,17 +1,3 @@
-<script setup lang="ts">
-import { computed } from 'vue'
-import TransectViewer from './TransectViewer.vue'
-import { SITES } from '@/shared/sites'
-
-const props = defineProps<{
-  /** Transect key, i.e. the folder name under public/transects/. */
-  transectKey: string
-}>()
-
-/** Undefined for a transect that is not on the map yet: the viewer then shows no badge. */
-const site = computed(() => SITES.find((s) => s.transectKey === props.transectKey))
-</script>
-
 <template>
   <main class="h-svh">
     <h1 class="sr-only">{{ site?.name ?? transectKey }}</h1>
@@ -41,3 +27,17 @@ const site = computed(() => SITES.find((s) => s.transectKey === props.transectKe
     </TransectViewer>
   </main>
 </template>
+
+<script setup lang="ts">
+import { computed } from 'vue'
+import TransectViewer from './TransectViewer.vue'
+import { SITES } from '@/shared/sites'
+
+const props = defineProps<{
+  /** Transect key, i.e. the folder name under public/transects/. */
+  transectKey: string
+}>()
+
+/** Undefined for a transect that is not on the map yet: the viewer then shows no badge. */
+const site = computed(() => SITES.find((s) => s.transectKey === props.transectKey))
+</script>

@@ -1,3 +1,40 @@
+<template>
+  <span class="pointer-events-auto flex flex-wrap items-center gap-1 text-[11px]">
+    <button
+      v-if="!editing"
+      type="button"
+      class="text-scanner hover:underline focus-visible:outline-2 focus-visible:outline-scanner"
+      @click="open"
+    >
+      {{ contributor ? 'change contributor' : 'set contributor' }}
+    </button>
+    <template v-else>
+      <label class="sr-only" for="contributor-picker">Contributor</label>
+      <select
+        id="contributor-picker"
+        class="max-w-[14rem] rounded border border-foam/20 bg-abyss px-1 py-0.5 text-foam"
+        :disabled="!users || saving"
+        :value="contributor?.id ?? ''"
+        @change="onChange"
+      >
+        <option value="">No contributor</option>
+        <option v-for="user in users" :key="user.id" :value="user.id">
+          {{ user.displayName }}{{ user.orcidId ? ` (${user.orcidId})` : '' }}
+        </option>
+      </select>
+      <button
+        type="button"
+        class="text-foam/60 hover:text-foam"
+        :disabled="saving"
+        @click="editing = false"
+      >
+        cancel
+      </button>
+    </template>
+    <span v-if="error" class="text-red-300" role="alert">{{ error }}</span>
+  </span>
+</template>
+
 <script setup lang="ts">
 // Admin control in the viewer badge: reassign the transect to another user (US-4.1).
 import { ref } from 'vue'
@@ -36,40 +73,3 @@ async function onChange(event: Event) {
   }
 }
 </script>
-
-<template>
-  <span class="pointer-events-auto flex flex-wrap items-center gap-1 text-[11px]">
-    <button
-      v-if="!editing"
-      type="button"
-      class="text-scanner hover:underline focus-visible:outline-2 focus-visible:outline-scanner"
-      @click="open"
-    >
-      {{ contributor ? 'change contributor' : 'set contributor' }}
-    </button>
-    <template v-else>
-      <label class="sr-only" for="contributor-picker">Contributor</label>
-      <select
-        id="contributor-picker"
-        class="max-w-[14rem] rounded border border-foam/20 bg-abyss px-1 py-0.5 text-foam"
-        :disabled="!users || saving"
-        :value="contributor?.id ?? ''"
-        @change="onChange"
-      >
-        <option value="">No contributor</option>
-        <option v-for="user in users" :key="user.id" :value="user.id">
-          {{ user.displayName }}{{ user.orcidId ? ` (${user.orcidId})` : '' }}
-        </option>
-      </select>
-      <button
-        type="button"
-        class="text-foam/60 hover:text-foam"
-        :disabled="saving"
-        @click="editing = false"
-      >
-        cancel
-      </button>
-    </template>
-    <span v-if="error" class="text-red-300" role="alert">{{ error }}</span>
-  </span>
-</template>

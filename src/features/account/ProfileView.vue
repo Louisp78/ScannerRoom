@@ -1,26 +1,3 @@
-<script setup lang="ts">
-// Signed-in user's profile: identity, number of contributions and their list (US-4.1).
-import { onMounted, ref } from 'vue'
-import AccountMenu from './AccountMenu.vue'
-import { getMe, getMyTransects, type OwnTransect, type SessionUser } from '@/shared/api'
-import { formatLatLon, SITES } from '@/shared/sites'
-
-const user = ref<SessionUser>()
-const contributions = ref<OwnTransect[]>()
-const loadError = ref(false)
-
-const siteByKey = new Map(SITES.map((site) => [site.transectKey, site]))
-const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' })
-
-onMounted(async () => {
-  try {
-    ;[user.value, contributions.value] = await Promise.all([getMe(), getMyTransects()])
-  } catch {
-    loadError.value = true
-  }
-})
-</script>
-
 <template>
   <div class="relative isolate min-h-svh px-4 py-6 sm:py-10">
     <div
@@ -106,3 +83,26 @@ onMounted(async () => {
     </main>
   </div>
 </template>
+
+<script setup lang="ts">
+// Signed-in user's profile: identity, number of contributions and their list (US-4.1).
+import { onMounted, ref } from 'vue'
+import AccountMenu from './AccountMenu.vue'
+import { getMe, getMyTransects, type OwnTransect, type SessionUser } from '@/shared/api'
+import { formatLatLon, SITES } from '@/shared/sites'
+
+const user = ref<SessionUser>()
+const contributions = ref<OwnTransect[]>()
+const loadError = ref(false)
+
+const siteByKey = new Map(SITES.map((site) => [site.transectKey, site]))
+const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' })
+
+onMounted(async () => {
+  try {
+    ;[user.value, contributions.value] = await Promise.all([getMe(), getMyTransects()])
+  } catch {
+    loadError.value = true
+  }
+})
+</script>

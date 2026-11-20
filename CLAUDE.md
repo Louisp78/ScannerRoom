@@ -12,6 +12,7 @@
 - the app shell only wires features together; it holds no feature logic
 - code used by a single feature lives in that feature; it moves to shared only once a second feature needs it
 - shared UI (design system, common components) lives in shared, never inside a feature
+- Vue single-file components are ordered template, then script, then style (enforced by the linter)
 
 ## Transect pipeline rules
 

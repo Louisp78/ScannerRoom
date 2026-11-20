@@ -1,121 +1,3 @@
-<script setup lang="ts">
-import { defineAsyncComponent, onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue'
-import type { Directive } from 'vue'
-import ScanHero from './ScanHero.vue'
-import { formatLatLon, type Site, SITES } from '@/shared/sites'
-
-/**
- * Fades an element in the first time it scrolls into view. Elements start
- * visible when IntersectionObserver is missing or motion is reduced (see CSS).
- */
-const vReveal: Directive<HTMLElement, number | undefined> = {
-  mounted(el, binding) {
-    if (!('IntersectionObserver' in window)) return
-    el.classList.add('reveal')
-    el.style.setProperty('--reveal-delay', `${binding.value ?? 0}ms`)
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry?.isIntersecting) return
-        el.classList.add('revealed')
-        observer.disconnect()
-      },
-      { threshold: 0.2 },
-    )
-    observer.observe(el)
-  },
-}
-
-const steps = [
-  {
-    title: 'Film',
-    text: 'Swim your transect with any action camera. A geolocated video is all the field kit you need.',
-  },
-  {
-    title: 'Reconstruct',
-    text: 'Frames are extracted and a learned dense reconstruction recovers per-frame depth and the camera trajectory.',
-  },
-  {
-    title: 'Clean',
-    text: 'Low-confidence depth and open water are filtered out, the cloud is voxelised relative to median depth, outliers removed.',
-  },
-  {
-    title: 'Explore',
-    text: 'The coloured point cloud and camera path stream to the browser: scroll along the reef as if you were diving it.',
-  },
-]
-
-const features = [
-  {
-    title: 'Open, standard formats',
-    text: 'Point clouds ship as PLY and camera paths as JSON. Load them straight into CloudCompare, Open3D or your own scripts.',
-    roadmap: false,
-  },
-  {
-    title: 'Reproducible by design',
-    text: 'One generic pipeline for every transect. No per-site tuning: every threshold is derived from the data itself.',
-    roadmap: false,
-  },
-  {
-    title: 'Geolocated and comparable',
-    text: 'Each reconstruction is pinned on a shared world map, next to transects filmed by other teams.',
-    roadmap: false,
-  },
-  {
-    title: 'Metrics on demand',
-    text: 'Rugosity, relief and benthic cover computed from the 3D model, ready for your analyses.',
-    roadmap: true,
-  },
-  {
-    title: 'Editable models',
-    text: 'Crop, annotate and correct reconstructions, then share the curated version with the community.',
-    roadmap: true,
-  },
-  {
-    title: 'Change over time',
-    text: 'Revisit a site, re-film the same transect and compare reconstructions to follow how the reef evolves.',
-    roadmap: true,
-  },
-]
-
-/**
- * Atlas pins, one per group of sites that would overlap on the flat map: its
- * 24 px pins span ~16° on a ~530 px wide map, so nearby sites (the transects of
- * a reef, the sites of a coast) share one pin with their count, which opens the
- * globe where they separate when zooming in.
- */
-const ATLAS_PIN_DEG = 16
-const atlasPins = SITES.reduce<{ lat: number; lon: number; sites: Site[] }[]>((pins, site) => {
-  const pin = pins.find((p) => Math.hypot(p.lat - site.lat, p.lon - site.lon) < ATLAS_PIN_DEG / 2)
-  if (pin) pin.sites.push(site)
-  else pins.push({ lat: site.lat, lon: site.lon, sites: [site] })
-  return pins
-}, [])
-
-/** Reconstruction showcased on the landing page, as a real example of the output. */
-const featured = SITES.find((site) => site.transectKey === 'site3-transect2-south-return')
-
-// three.js and the ~20 MB point cloud only load once the showcase nears the
-// viewport (US-2.3), so the top of the landing page stays light.
-const TransectViewer = defineAsyncComponent(() => import('@/features/transect/TransectViewer.vue'))
-const showcase = useTemplateRef<HTMLElement>('showcase')
-const showcaseActive = ref(false)
-let showcaseObserver: IntersectionObserver | undefined
-
-onMounted(() => {
-  if (!showcase.value) return
-  showcaseObserver = new IntersectionObserver(
-    ([entry]) => {
-      if (!entry?.isIntersecting) return
-      showcaseActive.value = true
-      showcaseObserver?.disconnect()
-    },
-    { rootMargin: '400px 0px' },
-  )
-  showcaseObserver.observe(showcase.value)
-})
-onBeforeUnmount(() => showcaseObserver?.disconnect())
-</script>
-
 <template>
   <div class="overflow-x-hidden">
     <!-- Hero -->
@@ -426,6 +308,124 @@ onBeforeUnmount(() => showcaseObserver?.disconnect())
     </footer>
   </div>
 </template>
+
+<script setup lang="ts">
+import { defineAsyncComponent, onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue'
+import type { Directive } from 'vue'
+import ScanHero from './ScanHero.vue'
+import { formatLatLon, type Site, SITES } from '@/shared/sites'
+
+/**
+ * Fades an element in the first time it scrolls into view. Elements start
+ * visible when IntersectionObserver is missing or motion is reduced (see CSS).
+ */
+const vReveal: Directive<HTMLElement, number | undefined> = {
+  mounted(el, binding) {
+    if (!('IntersectionObserver' in window)) return
+    el.classList.add('reveal')
+    el.style.setProperty('--reveal-delay', `${binding.value ?? 0}ms`)
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return
+        el.classList.add('revealed')
+        observer.disconnect()
+      },
+      { threshold: 0.2 },
+    )
+    observer.observe(el)
+  },
+}
+
+const steps = [
+  {
+    title: 'Film',
+    text: 'Swim your transect with any action camera. A geolocated video is all the field kit you need.',
+  },
+  {
+    title: 'Reconstruct',
+    text: 'Frames are extracted and a learned dense reconstruction recovers per-frame depth and the camera trajectory.',
+  },
+  {
+    title: 'Clean',
+    text: 'Low-confidence depth and open water are filtered out, the cloud is voxelised relative to median depth, outliers removed.',
+  },
+  {
+    title: 'Explore',
+    text: 'The coloured point cloud and camera path stream to the browser: scroll along the reef as if you were diving it.',
+  },
+]
+
+const features = [
+  {
+    title: 'Open, standard formats',
+    text: 'Point clouds ship as PLY and camera paths as JSON. Load them straight into CloudCompare, Open3D or your own scripts.',
+    roadmap: false,
+  },
+  {
+    title: 'Reproducible by design',
+    text: 'One generic pipeline for every transect. No per-site tuning: every threshold is derived from the data itself.',
+    roadmap: false,
+  },
+  {
+    title: 'Geolocated and comparable',
+    text: 'Each reconstruction is pinned on a shared world map, next to transects filmed by other teams.',
+    roadmap: false,
+  },
+  {
+    title: 'Metrics on demand',
+    text: 'Rugosity, relief and benthic cover computed from the 3D model, ready for your analyses.',
+    roadmap: true,
+  },
+  {
+    title: 'Editable models',
+    text: 'Crop, annotate and correct reconstructions, then share the curated version with the community.',
+    roadmap: true,
+  },
+  {
+    title: 'Change over time',
+    text: 'Revisit a site, re-film the same transect and compare reconstructions to follow how the reef evolves.',
+    roadmap: true,
+  },
+]
+
+/**
+ * Atlas pins, one per group of sites that would overlap on the flat map: its
+ * 24 px pins span ~16° on a ~530 px wide map, so nearby sites (the transects of
+ * a reef, the sites of a coast) share one pin with their count, which opens the
+ * globe where they separate when zooming in.
+ */
+const ATLAS_PIN_DEG = 16
+const atlasPins = SITES.reduce<{ lat: number; lon: number; sites: Site[] }[]>((pins, site) => {
+  const pin = pins.find((p) => Math.hypot(p.lat - site.lat, p.lon - site.lon) < ATLAS_PIN_DEG / 2)
+  if (pin) pin.sites.push(site)
+  else pins.push({ lat: site.lat, lon: site.lon, sites: [site] })
+  return pins
+}, [])
+
+/** Reconstruction showcased on the landing page, as a real example of the output. */
+const featured = SITES.find((site) => site.transectKey === 'site3-transect2-south-return')
+
+// three.js and the ~20 MB point cloud only load once the showcase nears the
+// viewport (US-2.3), so the top of the landing page stays light.
+const TransectViewer = defineAsyncComponent(() => import('@/features/transect/TransectViewer.vue'))
+const showcase = useTemplateRef<HTMLElement>('showcase')
+const showcaseActive = ref(false)
+let showcaseObserver: IntersectionObserver | undefined
+
+onMounted(() => {
+  if (!showcase.value) return
+  showcaseObserver = new IntersectionObserver(
+    ([entry]) => {
+      if (!entry?.isIntersecting) return
+      showcaseActive.value = true
+      showcaseObserver?.disconnect()
+    },
+    { rootMargin: '400px 0px' },
+  )
+  showcaseObserver.observe(showcase.value)
+})
+onBeforeUnmount(() => showcaseObserver?.disconnect())
+</script>
 
 <style scoped>
 .hero-in {

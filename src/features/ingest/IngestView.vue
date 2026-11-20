@@ -1,146 +1,3 @@
-<script setup lang="ts">
-// Dev-only page (see router): uploads a transect video to the local ingest
-// endpoint and follows the reconstruction until the site lands on the map.
-import {
-  computed,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  reactive,
-  ref,
-  useTemplateRef,
-  watch,
-} from 'vue'
-import { INGEST_ROUTE, type IngestJob, type IngestStep } from './ingestJob'
-
-const STEPS: { step: IngestStep; label: string }[] = [
-  { step: 'upload', label: 'Uploading the video' },
-  { step: 'extract', label: 'Extracting frames' },
-  { step: 'reconstruct', label: '3D reconstruction (LingBot-Map)' },
-  { step: 'export', label: 'Web export' },
-  { step: 'register', label: 'Adding to the map' },
-]
-
-const form = reactive({ name: '', key: '', lat: '', lon: '', fps: '2', start: '0', duration: '60' })
-const file = ref<File>()
-const keyEdited = ref(false)
-const job = ref<IngestJob | null>(null)
-const error = ref<string>()
-const sending = ref(false)
-
-let poll: ReturnType<typeof setInterval> | undefined
-
-// Keep the log scrolled to its latest line, like a terminal.
-const logEl = useTemplateRef<HTMLPreElement>('logEl')
-watch(
-  () => job.value?.log.at(-1),
-  async () => {
-    await nextTick()
-    if (logEl.value) logEl.value.scrollTop = logEl.value.scrollHeight
-  },
-)
-
-const running = computed(() => sending.value || job.value?.status === 'running')
-const currentIndex = computed(() => STEPS.findIndex((s) => s.step === job.value?.step))
-
-/** Derives a folder-safe key from the name until the user edits it. */
-function onNameInput() {
-  if (keyEdited.value) return
-  form.key = form.name
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 64)
-}
-
-/** Reconstruction speed measured on an M3 Pro (see the pipeline docs). */
-const SECONDS_PER_FRAME = 2
-
-/** Length of the chosen video in seconds, read from its metadata. */
-const videoDuration = ref<number>()
-
-function onFileChange(event: Event) {
-  file.value = (event.target as HTMLInputElement).files?.[0]
-  videoDuration.value = undefined
-  if (!file.value) return
-  const probe = document.createElement('video')
-  const url = URL.createObjectURL(file.value)
-  probe.preload = 'metadata'
-  probe.onloadedmetadata = () => {
-    videoDuration.value = Number.isFinite(probe.duration) ? probe.duration : undefined
-    URL.revokeObjectURL(url)
-  }
-  probe.onerror = () => URL.revokeObjectURL(url)
-  probe.src = url
-}
-
-/** Frames ffmpeg will extract: the window is clipped to the end of the video. */
-const frameCount = computed(() => {
-  const fps = Number(form.fps)
-  const start = Number(form.start)
-  let seconds = Number(form.duration)
-  if (videoDuration.value !== undefined) seconds = Math.min(seconds, videoDuration.value - start)
-  return fps > 0 && seconds > 0 ? Math.floor(fps * seconds) : 0
-})
-
-const estimate = computed(() => {
-  const seconds = frameCount.value * SECONDS_PER_FRAME
-  if (seconds < 60) return 'under a minute'
-  const minutes = Math.round(seconds / 60)
-  if (minutes < 60) return `${minutes} min`
-  return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')}`
-})
-
-async function refresh() {
-  const res = await fetch(INGEST_ROUTE)
-  job.value = await res.json()
-  if (job.value?.status !== 'running') stopPolling()
-}
-
-function startPolling() {
-  stopPolling()
-  poll = setInterval(() => refresh().catch(() => {}), 2000)
-}
-
-function stopPolling() {
-  if (poll) clearInterval(poll)
-  poll = undefined
-}
-
-async function submit() {
-  if (!file.value) return
-  error.value = undefined
-  sending.value = true
-  job.value = { key: form.key, name: form.name, status: 'running', step: 'upload', log: [] }
-  try {
-    const query = new URLSearchParams(form)
-    const res = await fetch(`${INGEST_ROUTE}?${query}`, { method: 'POST', body: file.value })
-    const body = await res.json()
-    if (!res.ok && 'error' in body && !('status' in body)) {
-      job.value = null
-      error.value = body.error
-      return
-    }
-    job.value = body
-    if (body.status === 'running') startPolling()
-  } catch (e) {
-    job.value = null
-    error.value = e instanceof Error ? e.message : String(e)
-  } finally {
-    sending.value = false
-  }
-}
-
-onMounted(async () => {
-  // Resume following a job started before a reload.
-  await refresh().catch(() => {})
-  if (job.value?.status === 'running') startPolling()
-})
-onBeforeUnmount(stopPolling)
-</script>
-
 <template>
   <div class="flex min-h-screen flex-col">
     <header class="flex items-center gap-4 px-4 py-3">
@@ -318,6 +175,149 @@ onBeforeUnmount(stopPolling)
     </main>
   </div>
 </template>
+
+<script setup lang="ts">
+// Dev-only page (see router): uploads a transect video to the local ingest
+// endpoint and follows the reconstruction until the site lands on the map.
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  useTemplateRef,
+  watch,
+} from 'vue'
+import { INGEST_ROUTE, type IngestJob, type IngestStep } from './ingestJob'
+
+const STEPS: { step: IngestStep; label: string }[] = [
+  { step: 'upload', label: 'Uploading the video' },
+  { step: 'extract', label: 'Extracting frames' },
+  { step: 'reconstruct', label: '3D reconstruction (LingBot-Map)' },
+  { step: 'export', label: 'Web export' },
+  { step: 'register', label: 'Adding to the map' },
+]
+
+const form = reactive({ name: '', key: '', lat: '', lon: '', fps: '2', start: '0', duration: '60' })
+const file = ref<File>()
+const keyEdited = ref(false)
+const job = ref<IngestJob | null>(null)
+const error = ref<string>()
+const sending = ref(false)
+
+let poll: ReturnType<typeof setInterval> | undefined
+
+// Keep the log scrolled to its latest line, like a terminal.
+const logEl = useTemplateRef<HTMLPreElement>('logEl')
+watch(
+  () => job.value?.log.at(-1),
+  async () => {
+    await nextTick()
+    if (logEl.value) logEl.value.scrollTop = logEl.value.scrollHeight
+  },
+)
+
+const running = computed(() => sending.value || job.value?.status === 'running')
+const currentIndex = computed(() => STEPS.findIndex((s) => s.step === job.value?.step))
+
+/** Derives a folder-safe key from the name until the user edits it. */
+function onNameInput() {
+  if (keyEdited.value) return
+  form.key = form.name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64)
+}
+
+/** Reconstruction speed measured on an M3 Pro (see the pipeline docs). */
+const SECONDS_PER_FRAME = 2
+
+/** Length of the chosen video in seconds, read from its metadata. */
+const videoDuration = ref<number>()
+
+function onFileChange(event: Event) {
+  file.value = (event.target as HTMLInputElement).files?.[0]
+  videoDuration.value = undefined
+  if (!file.value) return
+  const probe = document.createElement('video')
+  const url = URL.createObjectURL(file.value)
+  probe.preload = 'metadata'
+  probe.onloadedmetadata = () => {
+    videoDuration.value = Number.isFinite(probe.duration) ? probe.duration : undefined
+    URL.revokeObjectURL(url)
+  }
+  probe.onerror = () => URL.revokeObjectURL(url)
+  probe.src = url
+}
+
+/** Frames ffmpeg will extract: the window is clipped to the end of the video. */
+const frameCount = computed(() => {
+  const fps = Number(form.fps)
+  const start = Number(form.start)
+  let seconds = Number(form.duration)
+  if (videoDuration.value !== undefined) seconds = Math.min(seconds, videoDuration.value - start)
+  return fps > 0 && seconds > 0 ? Math.floor(fps * seconds) : 0
+})
+
+const estimate = computed(() => {
+  const seconds = frameCount.value * SECONDS_PER_FRAME
+  if (seconds < 60) return 'under a minute'
+  const minutes = Math.round(seconds / 60)
+  if (minutes < 60) return `${minutes} min`
+  return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')}`
+})
+
+async function refresh() {
+  const res = await fetch(INGEST_ROUTE)
+  job.value = await res.json()
+  if (job.value?.status !== 'running') stopPolling()
+}
+
+function startPolling() {
+  stopPolling()
+  poll = setInterval(() => refresh().catch(() => {}), 2000)
+}
+
+function stopPolling() {
+  if (poll) clearInterval(poll)
+  poll = undefined
+}
+
+async function submit() {
+  if (!file.value) return
+  error.value = undefined
+  sending.value = true
+  job.value = { key: form.key, name: form.name, status: 'running', step: 'upload', log: [] }
+  try {
+    const query = new URLSearchParams(form)
+    const res = await fetch(`${INGEST_ROUTE}?${query}`, { method: 'POST', body: file.value })
+    const body = await res.json()
+    if (!res.ok && 'error' in body && !('status' in body)) {
+      job.value = null
+      error.value = body.error
+      return
+    }
+    job.value = body
+    if (body.status === 'running') startPolling()
+  } catch (e) {
+    job.value = null
+    error.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    sending.value = false
+  }
+}
+
+onMounted(async () => {
+  // Resume following a job started before a reload.
+  await refresh().catch(() => {})
+  if (job.value?.status === 'running') startPolling()
+})
+onBeforeUnmount(stopPolling)
+</script>
 
 <style scoped>
 @reference '@/shared/assets/main.css';
