@@ -228,6 +228,9 @@ y down, z forward); the viewer converts them.
 
 ## Leads tested and discarded
 
+Ongoing tests (pre-processing with AI and image filters, with every run kept
+and compared) live in [`experiments/`](experiments/README.md).
+
 **Colour correction before inference** (per-channel stretch + CLAHE), measured on
 the 40 images of the smoke set: kept pixels 63 % → 57 %, typical range 1.61× →
 1.16× the median depth. The model seems to use the blue haze as a distance cue;

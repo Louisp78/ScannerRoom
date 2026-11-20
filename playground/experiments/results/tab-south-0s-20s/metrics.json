@@ -1,0 +1,240 @@
+[
+ {
+  "name": "baseline",
+  "variant": "baseline",
+  "seed": 0,
+  "confident": 0.509,
+  "depthError2": 0.0676,
+  "depthError8": 0.0919,
+  "jitter": 0.751,
+  "thickness": 0.473,
+  "kept": 0.594,
+  "recovered": 0.085,
+  "points": 899322,
+  "depthScale": [
+   0.908,
+   1.081
+  ]
+ },
+ {
+  "name": "clahe",
+  "variant": "clahe",
+  "seed": 0,
+  "confident": 0.786,
+  "depthError2": 0.052,
+  "depthError8": 0.2243,
+  "jitter": 0.524,
+  "thickness": 0.48,
+  "kept": 0.784,
+  "recovered": 0.005,
+  "points": 1697547,
+  "depthScale": [
+   0.746,
+   1.311
+  ]
+ },
+ {
+  "name": "contrast",
+  "variant": "contrast",
+  "seed": 0,
+  "confident": 0.622,
+  "depthError2": 0.0512,
+  "depthError8": 0.1043,
+  "jitter": 0.886,
+  "thickness": 0.5,
+  "kept": 0.658,
+  "recovered": 0.036,
+  "points": 1024912,
+  "depthScale": [
+   0.904,
+   1.115
+  ]
+ },
+ {
+  "name": "contrast+control-seed1",
+  "variant": "contrast+control",
+  "seed": 1,
+  "confident": 0.621,
+  "depthError2": 0.0496,
+  "depthError8": 0.0987,
+  "jitter": 0.889,
+  "thickness": 0.502,
+  "kept": 0.659,
+  "recovered": 0.038,
+  "points": 1038955,
+  "depthScale": [
+   0.899,
+   1.12
+  ]
+ },
+ {
+  "name": "control",
+  "variant": "control",
+  "seed": 0,
+  "confident": 0.47,
+  "depthError2": 0.0521,
+  "depthError8": 0.112,
+  "jitter": 0.803,
+  "thickness": 0.466,
+  "kept": 0.573,
+  "recovered": 0.103,
+  "points": 901366,
+  "depthScale": [
+   0.904,
+   1.09
+  ]
+ },
+ {
+  "name": "control-seed1",
+  "variant": "control",
+  "seed": 1,
+  "confident": 0.475,
+  "depthError2": 0.0556,
+  "depthError8": 0.1544,
+  "jitter": 0.786,
+  "thickness": 0.467,
+  "kept": 0.573,
+  "recovered": 0.098,
+  "points": 888923,
+  "depthScale": [
+   0.922,
+   1.086
+  ]
+ },
+ {
+  "name": "control-seed2",
+  "variant": "control",
+  "seed": 2,
+  "confident": 0.474,
+  "depthError2": 0.0576,
+  "depthError8": 0.2234,
+  "jitter": 0.686,
+  "thickness": 0.465,
+  "kept": 0.571,
+  "recovered": 0.097,
+  "points": 897174,
+  "depthScale": [
+   0.915,
+   1.088
+  ]
+ },
+ {
+  "name": "denoise",
+  "variant": "denoise",
+  "seed": 0,
+  "confident": 0.25,
+  "depthError2": 0.0483,
+  "depthError8": NaN,
+  "jitter": 0.687,
+  "thickness": 0.463,
+  "kept": 0.435,
+  "recovered": 0.185,
+  "points": 986436,
+  "depthScale": [
+   0.939,
+   1.058
+  ]
+ },
+ {
+  "name": "fish",
+  "variant": "fish",
+  "seed": 0,
+  "confident": 0.505,
+  "depthError2": 0.0555,
+  "depthError8": 0.0823,
+  "jitter": 0.651,
+  "thickness": 0.474,
+  "kept": 0.594,
+  "recovered": 0.089,
+  "points": 908451,
+  "depthScale": [
+   0.895,
+   1.09
+  ]
+ },
+ {
+  "name": "fish+control-seed1",
+  "variant": "fish+control",
+  "seed": 1,
+  "confident": 0.475,
+  "depthError2": 0.055,
+  "depthError8": 0.1362,
+  "jitter": 0.7,
+  "thickness": 0.468,
+  "kept": 0.575,
+  "recovered": 0.1,
+  "points": 918784,
+  "depthScale": [
+   0.907,
+   1.099
+  ]
+ },
+ {
+  "name": "fish+control-seed2",
+  "variant": "fish+control",
+  "seed": 2,
+  "confident": 0.47,
+  "depthError2": 0.06,
+  "depthError8": 0.1306,
+  "jitter": 0.712,
+  "thickness": 0.466,
+  "kept": 0.573,
+  "recovered": 0.103,
+  "points": 922213,
+  "depthScale": [
+   0.91,
+   1.071
+  ]
+ },
+ {
+  "name": "funie",
+  "variant": "funie",
+  "seed": 0,
+  "confident": 0.065,
+  "depthError2": 0.0597,
+  "depthError8": NaN,
+  "jitter": 1.293,
+  "thickness": 0.393,
+  "kept": 0.215,
+  "recovered": 0.15,
+  "points": 642313,
+  "depthScale": [
+   0.98,
+   1.019
+  ]
+ },
+ {
+  "name": "sharpest",
+  "variant": "sharpest",
+  "seed": 0,
+  "confident": 0.52,
+  "depthError2": 0.0712,
+  "depthError8": 0.1917,
+  "jitter": 0.805,
+  "thickness": 0.479,
+  "kept": 0.597,
+  "recovered": 0.077,
+  "points": 874345,
+  "depthScale": [
+   0.875,
+   1.137
+  ]
+ },
+ {
+  "name": "temporal",
+  "variant": "temporal",
+  "seed": 0,
+  "confident": 0.095,
+  "depthError2": 0.0543,
+  "depthError8": NaN,
+  "jitter": 0.641,
+  "thickness": 0.404,
+  "kept": 0.272,
+  "recovered": 0.177,
+  "points": 796041,
+  "depthScale": [
+   0.994,
+   1.01
+  ]
+ }
+]
