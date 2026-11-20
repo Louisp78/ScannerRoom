@@ -44,7 +44,7 @@ Live at [scannerroom.louisplace.com](https://scannerroom.louisplace.com).
 - [Brand identity](docs/brand.md).
 - [Reconstruction pipeline](playground/README.md): how a video becomes a point
   cloud, and why each step is there.
-- [3D viewer](docs/us-2.1-viewer-3d.md) and
-  [contributor accounts](docs/us-4.1-contributor-accounts.md): design notes.
+- [3D viewer](docs/user_stories/us-2.1-viewer-3d.md) and
+  [contributor accounts](docs/user_stories/us-4.1-contributor-accounts.md): design notes.
 - [Contributing](CONTRIBUTING.md): local setup, conventions, adding and
   publishing a transect, deployment.
