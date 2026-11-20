@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 # Publishes exported transects to the VPS. Transect data is not in the
-# repository: each public/transects/<key>/ folder is uploaded to
-# ~/scannerroom/transects/<key>/ on the VPS (mounted into the site container by
-# deploy/vps.sh), then registered in the database.
+# repository: each exported transect folder is uploaded to the VPS (mounted into
+# the site container), then registered in the database.
 #
 # Usage: deploy/publish-transect.sh <key>...
 #
 # Only changed files are sent, and files removed locally are removed on the VPS,
 # so re-publishing after a re-export is cheap. Publish the data before pushing
-# the src/shared/sites.json entry that points to it. The VPS is reached through the ssh
+# the site catalog entry that points to it. The VPS is reached through the ssh
 # host $SCANNERROOM_SSH (default: louisplace-app).
 set -euo pipefail
 

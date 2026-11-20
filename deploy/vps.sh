@@ -8,9 +8,8 @@
 # container proxies /api to the API container; the API and the database only
 # live on the internal "scannerroom" docker network.
 #
-# Transect data is not in the repository: it lives in ~/scannerroom/transects
-# (outside the source folder CI wipes), uploaded by deploy/publish-transect.sh,
-# and is mounted read-only into the site container.
+# Transect data is not in the repository: it lives outside the source folder CI
+# wipes, is uploaded by the publish script, and is mounted read-only into the site container.
 set -euo pipefail
 
 # Required secrets fail fast; OAuth providers and admins are optional

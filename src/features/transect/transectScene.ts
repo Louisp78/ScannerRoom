@@ -3,7 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { PLYLoader } from 'three/addons/loaders/PLYLoader.js'
 import { CSS2DObject, CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js'
 
-/** Diver's camera path as written by playground/scripts/export-web.py. */
+/** Diver's camera path as written by the web export of the pipeline. */
 export interface TransectPath {
   video: string
   /** Camera position per extracted frame, already smoothed, reconstruction world frame. */

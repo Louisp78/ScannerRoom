@@ -4,9 +4,9 @@
  *
  * Reconstruction runs LingBot-Map on Apple Silicon (MLX), which the VPS cannot
  * do, so these endpoints only exist on the Vite dev server (`apply: 'serve'`) and
- * never ship in the production build. The output is public/transects/<key>/
- * (not committed, published with deploy/publish-transect.sh) and the
- * src/shared/sites.json entry (committed).
+ * never ship in the production build. The output is the transect's data folder
+ * (not committed, published with the deploy publish script) and its site
+ * catalog entry (committed).
  *
  * API, one job at a time since the reconstruction saturates the GPU:
  *   POST /__ingest/job?key&name&lat&lon&fps&start&duration  body: the raw video

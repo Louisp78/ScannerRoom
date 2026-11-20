@@ -55,8 +55,7 @@ const router = createRouter({
       name: 'request-access',
       component: () => import('@/features/account/RequestAccessView.vue'),
     },
-    // Local ingest tool: its endpoint only exists on the dev server
-    // (vite-plugins/ingest.ts), so the page is left out of production builds;
+    // Local ingest tool: its endpoint only exists on the dev server, so the page is left out of production builds;
     // there, "Add a transect" leads to the access request page instead.
     ...(import.meta.env.DEV
       ? [

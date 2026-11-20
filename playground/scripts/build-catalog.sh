@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Build transects of the 01-fetch-transect.sh catalog end to end, one at a time,
-# and put them on the map (src/shared/sites.json).
+# Build transects of the fetch step's catalog end to end, one at a time,
+# and put them on the map (site catalog).
 #
 # Strictly sequential: a full-length transect takes ~1000 frames, the
 # reconstruction alone fills most of the RAM and the GPU, and the intermediates

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Legal notice, terms of use and privacy policy (French LCEN and GDPR), one page
 // with an anchor per section. Keep the privacy section in line with what the API
-// actually stores (api/src/db/schema.ts) whenever the data model changes.
+// actually stores (its database schema) whenever the data model changes.
 const CONTACT_EMAIL = 'lgup.official@gmail.com'
 const LAST_UPDATED = '11 November 2026'
 

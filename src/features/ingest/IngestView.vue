@@ -55,7 +55,7 @@ function onNameInput() {
     .slice(0, 64)
 }
 
-/** Reconstruction speed measured on an M3 Pro (see playground/README.md). */
+/** Reconstruction speed measured on an M3 Pro (see the pipeline docs). */
 const SECONDS_PER_FRAME = 2
 
 /** Length of the chosen video in seconds, read from its metadata. */
