@@ -3,7 +3,8 @@
 A sandbox **outside the application**: it produces realistic test data for the 3D
 viewer from real underwater transect videos. Nothing here is imported by the Vue
 app; the only link with it is the folder exported to `public/transects/<key>/`,
-which the viewer loads on the `/transects/<key>` route.
+which the viewer loads on the `/transects/<key>` route. That folder is not
+committed: it is published to the VPS with `deploy/publish-transect.sh <key>`.
 
 ## Data source
 
@@ -75,8 +76,9 @@ The form takes the video, a name, a key (folder name, derived from the name),
 the site position (latitude/longitude) and the excerpt to reconstruct (frames per
 second, start, duration). The dev server copies the video to
 `transects/<key>.mp4`, runs steps 02, 03 and 04, then adds the site to
-`src/sites.json`: the point appears on the local map. To publish it, commit
-`public/transects/<key>/` and `src/sites.json`; CI deploys as usual.
+`src/sites.json`: the point appears on the local map. To publish it, upload the
+data with `deploy/publish-transect.sh <key>` (rsync to the VPS, then database
+registration), then commit `src/sites.json`; CI deploys as usual.
 
 This interface only exists locally: the reconstruction needs the GPU of an Apple
 Silicon Mac (MLX), which the VPS does not have. The HTTP entry point

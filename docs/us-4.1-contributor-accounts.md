@@ -195,7 +195,7 @@ by Jane Doe · ORCID 0000-0002-1825-0097
 
 Reconstruction stays local (it needs Apple Silicon). At the end of the ingest pipeline (`register` step in `vite-plugins/ingest.ts`), the transect is registered with `POST /api/transects`, using a personal API token created from the user's account, and owned by that user.
 
-Until then, each deploy registers every folder of `public/transects/` without owner (already registered transects are left untouched). `api/scripts/register-transect.ts` registers one or more transects, flags it showcase or private, and assigns its owner by login (`--owner orcid:<iD>`, once that person has signed in). In production: `docker exec scannerroom-api node scripts/register-transect.ts <key>... [--showcase] [--owner provider:subject]`. A transect without owner is editable by admins only.
+Until then, each deploy registers every transect folder published on the VPS (`~/scannerroom/transects/`, see `deploy/publish-transect.sh`) without owner (already registered transects are left untouched). `api/scripts/register-transect.ts` registers one or more transects, flags it showcase or private, and assigns its owner by login (`--owner orcid:<iD>`, once that person has signed in). In production: `docker exec scannerroom-api node scripts/register-transect.ts <key>... [--showcase] [--owner provider:subject]`. A transect without owner is editable by admins only.
 
 ## Impact on US-2.5 biome areas
 
