@@ -11,3 +11,5 @@ docker-compose.yml
 api/**
 !api/tsconfig.json
 !api/src/contract.ts
+# Transect data is mounted into the site container from the VPS, never baked in.
+public/transects

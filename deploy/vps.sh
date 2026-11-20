@@ -7,6 +7,10 @@
 # scannerroom.louisplace.com -> 127.0.0.1:3001 (the site container). The site
 # container proxies /api to the API container; the API and the database only
 # live on the internal "scannerroom" docker network.
+#
+# Transect data is not in the repository: it lives in ~/scannerroom/transects
+# (outside the source folder CI wipes), uploaded by deploy/publish-transect.sh,
+# and is mounted read-only into the site container.
 set -euo pipefail
 
 # Required secrets fail fast; OAuth providers and admins are optional
@@ -17,6 +21,8 @@ set -euo pipefail
 : "${ADMIN_IDENTITIES=}"
 
 cd "$(dirname "$0")/.."
+TRANSECTS=~/scannerroom/transects
+mkdir -p "$TRANSECTS"
 docker network create scannerroom 2>/dev/null || true
 
 # Database: created once, then kept across deploys (volume
@@ -56,14 +62,18 @@ ENV
 )
 docker build -t scannerroom-api:latest api
 docker rm -f scannerroom-api 2>/dev/null || true
-# Every deployed transect folder must exist in the database (its contributor
+# Every published transect folder must exist in the database (its contributor
 # and showcase flag live there). Already registered ones are left untouched.
 # Run before the API starts so the two never apply migrations concurrently.
-docker run --rm \
-  --network scannerroom \
-  --env-file ~/scannerroom/api.env \
-  scannerroom-api:latest \
-  node scripts/register-transect.ts $(ls public/transects)
+keys=$(ls "$TRANSECTS")
+if [ -n "$keys" ]; then
+  # shellcheck disable=SC2086 # one argument per key
+  docker run --rm \
+    --network scannerroom \
+    --env-file ~/scannerroom/api.env \
+    scannerroom-api:latest \
+    node scripts/register-transect.ts $keys
+fi
 docker run -d \
   --name scannerroom-api \
   --network scannerroom \
@@ -72,7 +82,7 @@ docker run -d \
   scannerroom-api:latest
 
 # Site: the static bundle plus the nginx routing /api and guarding the
-# transect data files.
+# transect data files, mounted from the VPS.
 docker build -t scannerroom:latest .
 docker rm -f scannerroom 2>/dev/null || true
 docker run -d \
@@ -80,6 +90,7 @@ docker run -d \
   --network scannerroom \
   --restart always \
   -p 127.0.0.1:3001:80 \
+  -v "$TRANSECTS":/usr/share/nginx/html/transects:ro \
   scannerroom:latest
 docker image prune -f
 echo "Deployment complete!"
