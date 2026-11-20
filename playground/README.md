@@ -1,10 +1,11 @@
 # Playground — from transect video to point cloud
 
-A sandbox **outside the application**: it produces realistic test data for the 3D
-viewer from real underwater transect videos. Nothing here is imported by the Vue
-app; the only link with it is the folder exported to `public/transects/<key>/`,
-which the viewer loads on the `/transects/<key>` route. That folder is not
-committed: it is published to the VPS with `deploy/publish-transect.sh <key>`.
+How a diver's transect video becomes the point cloud and trajectory shown in the
+3D viewer, and why each step is there. Nothing here is imported by the Vue app:
+the only link with it is the folder exported to `public/transects/<key>/`, which
+the viewer loads on the `/transects/<key>` route.
+
+To add and publish a transect, see [CONTRIBUTING.md](../CONTRIBUTING.md#add-a-transect).
 
 ## Data source
 
@@ -63,27 +64,6 @@ whether the frames are portrait), which step 04 uses to timestamp each frame in 
 phone videos filmed upright, to undo the 90° turn LingBot-Map applies to portrait
 frames. The file sits **next to** the image
 folder, not inside it, so the reconstruction only sees images.
-
-## Adding a transect from the interface (US-3.3)
-
-For your own video, instead of chaining the scripts by hand:
-
-```bash
-npm run dev   # then http://localhost:5173/ingest ("Add a transect" link on the map)
-```
-
-The form takes the video, a name, a key (folder name, derived from the name),
-the site position (latitude/longitude) and the excerpt to reconstruct (frames per
-second, start, duration). The dev server copies the video to
-`transects/<key>.mp4`, runs steps 02, 03 and 04, then adds the site to
-`src/sites.json`: the point appears on the local map. To publish it, upload the
-data with `deploy/publish-transect.sh <key>` (rsync to the VPS, then database
-registration), then commit `src/sites.json`; CI deploys as usual.
-
-This interface only exists locally: the reconstruction needs the GPU of an Apple
-Silicon Mac (MLX), which the VPS does not have. The HTTP entry point
-(`vite-plugins/ingest.ts`) is only wired into the dev server, and the `/ingest`
-page is excluded from the production build. One job at a time.
 
 ## Step 03 — LingBot-Map
 
