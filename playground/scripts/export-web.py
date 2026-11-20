@@ -309,6 +309,24 @@ if args.frames:
     # Voxel down to one fine pixel at the median depth.
     voxel /= FINE
 
+
+def fit_budget(grid, voxel: float, budget: int, name: str):
+    """Regroup the voxels into coarser ones, weighted by their counts, until
+    the cloud holds at most `budget` points. The cloud is a surface, so the
+    point count goes with 1 / edge^2."""
+    while len(grid[0]) > budget:
+        voxel *= np.sqrt(len(grid[0]) / budget) * 1.02
+        _, sums, counts = grid
+        grid = merge(voxel_keys(sums[:, :3] / counts[:, None], voxel), sums, counts)
+        print(f"over the {budget:,} point {name} budget: voxel {voxel:.5f} -> {len(grid[0]):,} points")
+    return grid, voxel
+
+
+# The grid is kept within twice the detail budget while it fills: past that,
+# it is coarsened right away (as it would be at the end) and the next frames
+# go into the coarser voxels. Peak memory then follows the budget, not the
+# length of the transect (463 frames: 80 M voxels, 10 GB, before this).
+depth_voxel = voxel
 grid = (np.empty(0, np.int64), np.empty((0, 6)), np.empty(0))
 pending, n_confident, n_agreeing, n_kept = [], 0, 0, 0
 for k in range(len(depth)):
@@ -333,24 +351,14 @@ for k in range(len(depth)):
     if len(pending) == 32 or k == len(depth) - 1:
         grid = merge(*(np.concatenate([g, *(p[i] for p in pending)]) for i, g in enumerate(grid)))
         pending = []
+        if len(grid[0]) > 2 * args.max_detail_points:
+            grid, voxel = fit_budget(grid, voxel, args.max_detail_points, "detail")
 
 n_pixels = depth.size
 print(f"confident pixels {n_confident / n_pixels * 100:.1f}%, + agreeing views {n_agreeing / n_pixels * 100:.1f}%, "
       f"after water removal {n_kept / n_pixels * 100:.1f}% -> {n_kept:,} points")
-print(f"voxel {voxel:.5f} ({voxel / median_depth:.4f} x median depth): {len(grid[0]):,} points")
-
-
-def fit_budget(grid, voxel: float, budget: int, name: str):
-    """Regroup the voxels into coarser ones, weighted by their counts, until
-    the cloud holds at most `budget` points. The cloud is a surface, so the
-    point count goes with 1 / edge^2."""
-    while len(grid[0]) > budget:
-        voxel *= np.sqrt(len(grid[0]) / budget) * 1.02
-        _, sums, counts = grid
-        grid = merge(voxel_keys(sums[:, :3] / counts[:, None], voxel), sums, counts)
-        print(f"over the {budget:,} point {name} budget: voxel {voxel:.5f} -> {len(grid[0]):,} points")
-    return grid, voxel
-
+print(f"depth pixel voxel {depth_voxel:.5f} ({depth_voxel / median_depth:.4f} x median depth), "
+      f"now {voxel:.5f}: {len(grid[0]):,} points")
 
 grid, detail_voxel = fit_budget(grid, voxel, args.max_detail_points, "detail")
 _, sums, counts = grid

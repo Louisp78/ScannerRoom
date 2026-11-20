@@ -165,8 +165,10 @@ Cleaning chains four filters:
    go, the same relative detail whatever the transect, and far points do not
    coarsen it. Past `MAX_DETAIL_POINTS` (12 M by default, ~108 MB on disk) the
    voxels are merged into coarser ones until the cloud fits. Frames are merged
-   into the grid one at a time, so the export stays at a few GB of RAM on ~1000
-   frames.
+   into the grid as they come, and the grid is coarsened as soon as it holds
+   twice the budget, so peak RAM follows the budget, not the length of the
+   transect: ~7.4 GB on both 111 and 463 frames (10 GB on 463 frames when
+   coarsening waited for the end).
 4. **Isolated points**: statistical removal based on the distance to the 8
    nearest neighbours.
 
