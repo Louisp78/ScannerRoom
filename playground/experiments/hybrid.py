@@ -21,7 +21,6 @@ LingBot's motion, attached to the nearest trusted frame.
 """
 
 import json
-import shutil
 import sys
 from pathlib import Path
 
@@ -39,7 +38,10 @@ TRUST_WINDOW = 10                         # seconds of video either side for tha
 def load_sfm(sfm_dir, names):
     import pycolmap
 
-    models = [pycolmap.Reconstruction(p) for p in sorted((sfm_dir / "model").iterdir()) if p.is_dir()]
+    model_dir = sfm_dir / "model"
+    models = [pycolmap.Reconstruction(p) for p in sorted(model_dir.iterdir()) if p.is_dir()] if model_dir.is_dir() else []
+    if not models:
+        sys.exit(f"No SfM model in {sfm_dir}: SfM registered no frame, nothing to correct")
     best = max(models, key=lambda m: m.num_reg_images())
     index = {n: i for i, n in enumerate(names)}
     cam = best.cameras[next(iter(best.cameras))]
@@ -80,6 +82,11 @@ def main():
     run, sfm_dir, mode = Path(sys.argv[1]).resolve(), Path(sys.argv[2]).resolve(), sys.argv[3]
     if mode not in ("lingbot", "hybrid"):
         sys.exit(f"Unknown mode {mode}; known: lingbot, hybrid")
+    meta = json.loads((run / "frames.json").read_text())
+    if meta.get("portrait"):
+        # LingBot reconstructs portrait frames turned on their side, SfM sees
+        # them upright: pixels and poses would need that rotation in between.
+        sys.exit("Portrait videos are not supported by the hybrid step yet")
     n_sfm = json.loads((sfm_dir / "match.json").read_text())["frames"]
     names = sorted(p.name for p in (run / "frames").glob("*.jpg"))[:n_sfm]
     src_w, src_h = Image.open(run / "frames" / names[0]).size
@@ -91,7 +98,9 @@ def main():
     depth = d["depth"][..., 0].astype(np.float64)
     K = d["intrinsic"].astype(np.float64)
     S, H, W = depth.shape
-    sx, sy = W / src_w, H / src_h  # source pixels -> model pixels (stretched like the model input)
+    # Source pixels -> model pixel indices (stretched like the model input).
+    # COLMAP coordinates put pixel centres at +0.5, the model's indices at 0.
+    sx, sy = W / src_w, H / src_h
 
     frames, cam = load_sfm(sfm_dir, names)
     # SfM can "register" a frame without real geometry (a stretch of cameras
@@ -99,8 +108,8 @@ def main():
     # its SfM depths agree in scale with LingBot's, up to one global factor.
     log_scale = {}
     for k, (_, _, xy, z) in frames.items():
-        xi = np.clip(np.round((xy[:, 0] + 0.5) * sx - 0.5), 0, W - 1).astype(int)
-        yi = np.clip(np.round((xy[:, 1] + 0.5) * sy - 0.5), 0, H - 1).astype(int)
+        xi = np.clip(np.round(xy[:, 0] * sx - 0.5), 0, W - 1).astype(int)
+        yi = np.clip(np.round(xy[:, 1] * sy - 0.5), 0, H - 1).astype(int)
         ok = z > 0
         if ok.sum() >= 20 and np.median(z[ok]) > 0:
             log_scale[k] = float(np.median(np.log(z[ok] / depth[k, yi[ok], xi[ok]])))
@@ -108,7 +117,7 @@ def main():
     # depth scale drifts slowly along a long transect, which is what the
     # hybrid must correct, not a reason to distrust SfM. Only abrupt
     # disagreement marks a broken SfM frame.
-    fps = json.loads((run / "frames.json").read_text())["fps"]
+    fps = meta["fps"]
     half = max(1, round(TRUST_WINDOW * fps))
     keys = np.array(sorted(log_scale))
     vals = np.array([log_scale[k] for k in keys])
@@ -137,14 +146,14 @@ def main():
     f = cam.params[0]
     if reg:
         K[:, 0, 0], K[:, 1, 1] = f * sx, f * sy
-        K[:, 0, 2], K[:, 1, 2] = (cam.params[1] + 0.5) * sx - 0.5, (cam.params[2] + 0.5) * sy - 0.5
+        K[:, 0, 2], K[:, 1, 2] = cam.params[1] * sx - 0.5, cam.params[2] * sy - 0.5
     info = {"mode": mode, "frames": S, "registeredSfm": len(frames), "trusted": len(reg)}
 
     if mode == "hybrid":
         scales = []
         for k in reg:
             _, _, xy, z_sfm = frames[k]
-            xm, ym = (xy[:, 0] + 0.5) * sx - 0.5, (xy[:, 1] + 0.5) * sy - 0.5
+            xm, ym = xy[:, 0] * sx - 0.5, xy[:, 1] * sy - 0.5
             xi, yi = np.clip(np.round(xm), 0, W - 1).astype(int), np.clip(np.round(ym), 0, H - 1).astype(int)
             ok = z_sfm > 0
             if ok.sum() < 20:
@@ -156,6 +165,10 @@ def main():
         info["depthScale"] = [round(float(np.percentile(scales, p)), 3) for p in (10, 50, 90)]
 
     d["extrinsic_w2c"] = new.astype(np.float32)  # keep the port's field naming
+    # And its other field, the inverse, so the two never contradict each other.
+    inv = np.concatenate([np.transpose(new[:, :, :3], (0, 2, 1)),
+                          -np.einsum("kji,kj->ki", new[:, :, :3], new[:, :, 3])[:, :, None]], 2)
+    d["extrinsic_c2w"] = inv.astype(np.float32)
     d["intrinsic"] = K.astype(np.float32)
     d["depth"] = depth[..., None].astype(np.float32)
     out = run.parent / (mode + sfm_dir.name.removeprefix("sfm"))
@@ -165,7 +178,7 @@ def main():
         dst = out / "frames" / name
         if not dst.exists():
             dst.symlink_to(run / "frames" / name)
-    shutil.copy(run / "frames.json", out / "frames.json")
+    (out / "frames.json").write_text(json.dumps({**meta, "variant": mode}) + "\n")
     np.savez(out / "recon.npz", **d)
     (out / "hybrid.json").write_text(json.dumps(info, indent=2))
     print(out)

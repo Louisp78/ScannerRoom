@@ -58,6 +58,8 @@ for run in "$SET"/*/; do
   echo "$run -> $dest"
 done
 
+[ ${#KEYS[@]} -gt 0 ] || { echo "No exported run (web/cloud.ply) in $SET." >&2; exit 1; }
+
 python3 - "$ROOT/src/sites.json" "$KEY" "${KEYS[@]}" <<'PY'
 import json, sys
 p, base, *keys = sys.argv[1:]

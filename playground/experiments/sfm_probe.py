@@ -246,6 +246,10 @@ def plot(path, run, result, path_lb, path_sfm, points, rot_lb, frames, ang):
 def main():
     global LIMIT
     stage, run = sys.argv[1], Path(sys.argv[2]).resolve()
+    if json.loads((run / "frames.json").read_text()).get("portrait"):
+        # LingBot reconstructs portrait frames turned on their side and SfM
+        # would see them upright: the comparison needs that rotation first.
+        sys.exit("Portrait videos are not supported by the SfM probe yet")
     seconds = float(sys.argv[3]) if len(sys.argv) > 3 else None
     suffix = ""
     if seconds:

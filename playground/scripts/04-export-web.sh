@@ -31,7 +31,8 @@ else
   FRAMES_ARG=()
 fi
 
-"$PY" -I "$ROOT/scripts/export-web.py" "$SRC" "$META" "$DEST" "${FRAMES_ARG[@]}" \
+# ${a[@]+...} expands an empty array to nothing; plain "${a[@]}" trips set -u on bash < 4.4.
+"$PY" -I "$ROOT/scripts/export-web.py" "$SRC" "$META" "$DEST" ${FRAMES_ARG[@]+"${FRAMES_ARG[@]}"} \
   --conf "${CONF:-1.05}" \
   --path-smooth "${PATH_SMOOTH:-1.0}" --heading-smooth "${HEADING_SMOOTH:-1.5}" \
   --max-points "${MAX_POINTS:-2000000}" --detail-points-per-second "${DETAIL_POINTS_PER_SECOND:-250000}"

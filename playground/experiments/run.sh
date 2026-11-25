@@ -2,7 +2,7 @@
 # Run one pre-processing variant end to end on a transect excerpt and keep
 # everything: frames, reconstruction, exported cloud, metrics and renders.
 #
-# Usage: ./run.sh <transect-key> <variant>     (see preprocess.py for variants)
+# Usage: ./run.sh <transect-key> <variant>     (variants: see the pre-processing script)
 # Env:   START (default 0), DURATION (default 20), FPS (default 3), seconds / fps
 #        SEED (control-noise seed; when set, the run folder gets a -seedN suffix)
 # Output: out/experiments/<key>-<start>s-<duration>s/<variant>/

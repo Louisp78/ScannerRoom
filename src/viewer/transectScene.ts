@@ -3,7 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { PLYLoader } from 'three/addons/loaders/PLYLoader.js'
 import { CSS2DObject, CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js'
 
-/** Diver's camera path as written by playground/scripts/export-web.py. */
+/** Diver's camera path as written by the export. */
 export interface TransectPath {
   video: string
   /** Camera position per extracted frame, already smoothed, reconstruction world frame. */
@@ -17,7 +17,7 @@ export interface TransectPath {
   tiles?: DetailTile[]
 }
 
-/** One spatial tile of the full-detail cloud (export-web.py, "detail tiles"). */
+/** One spatial tile of the full-detail cloud, cut by the export. */
 export interface DetailTile {
   /** Path of the tile file, relative to the transect folder. */
   file: string
@@ -29,7 +29,7 @@ export interface DetailTile {
   base: [number, number]
 }
 
-/** How the 3D was built (export-web.py). Lengths in scene units, arbitrary scale. */
+/** How the 3D was built, as the export records it. Lengths in scene units, arbitrary scale. */
 export interface ReconstructionInfo {
   model: string
   frames: number
@@ -377,9 +377,16 @@ export class TransectScene {
       geometry.setAttribute('position', cloud.getAttribute('position'))
       geometry.setAttribute('color', cloud.getAttribute('color'))
       geometry.setDrawRange(...tile.base)
+      const box = new THREE.Box3(new THREE.Vector3(...tile.min), new THREE.Vector3(...tile.max))
+      // The geometry shares the whole cloud's positions: left to itself, three.js
+      // would compute every tile's bounds over the full cloud (slow on long
+      // transects, and no tile would ever be culled). Overview points are
+      // averages of the tile's detail, so its box widened by one overview voxel
+      // holds them.
+      geometry.boundingBox = box.clone().expandByScalar(info.voxel)
+      geometry.boundingSphere = geometry.boundingBox.getBoundingSphere(new THREE.Sphere())
       const overview = new THREE.Points(geometry, material)
       this.world.add(overview)
-      const box = new THREE.Box3(new THREE.Vector3(...tile.min), new THREE.Vector3(...tile.max))
       return { tile, box, overview, loading: false, failed: false }
     })
   }
@@ -446,7 +453,7 @@ export class TransectScene {
       if (!response.ok) throw new Error(`${t.tile.file}: HTTP ${response.status}`)
       const buffer = await response.arrayBuffer()
       const n = t.tile.points
-      // Layout (export-web.py): n x 3 uint16 positions within the box, then n x 3 uint8 sRGB colours.
+      // Layout (set by the export): n x 3 uint16 positions within the box, then n x 3 uint8 sRGB colours.
       const srgb = new Uint8Array(buffer, n * 6, n * 3)
       const colors = new Uint16Array(n * 3)
       for (let i = 0; i < colors.length; i++) colors[i] = SRGB_TO_LINEAR16[srgb[i]!]!

@@ -61,7 +61,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("npz")
 parser.add_argument("meta")
 parser.add_argument("out_dir")
-# Source frames of the reconstruction (02-extract-frames.sh output). Without
+# Source frames of the reconstruction (the frame extraction step). Without
 # them, the cloud stays at the model's 518 px resolution.
 parser.add_argument("--frames")
 parser.add_argument("--conf", type=float, default=1.05)
@@ -82,18 +82,7 @@ args = parser.parse_args()
 d = np.load(args.npz, allow_pickle=False)
 meta = json.loads(Path(args.meta).read_text())
 
-# Detail budget: proportional to the video covered, capped by memory. The voxel
-# grid holds up to twice the budget while it fills, ~125 bytes per voxel at the
-# merge peak (80 M voxels took 10 GB), and must leave room for the rest of the
-# export and the system: half the machine's RAM at most.
-PEAK_BYTES_PER_BUDGET_POINT = 2 * 125
-video_seconds = len(d["depth"]) / meta["fps"]
-ram = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
-memory_cap = int(ram / 2 / PEAK_BYTES_PER_BUDGET_POINT)
-max_detail_points = min(int(args.detail_points_per_second * video_seconds), memory_cap)
-print(f"detail budget {max_detail_points:,} points ({video_seconds:.0f} s of video"
-      f"{', capped by memory' if max_detail_points == memory_cap else ''})")
-# reconstruct.py stores images as uint8, the port's create_map.py as float 0-1.
+# Our reconstruction step stores images as uint8, the port's own script as float 0-1.
 imgs, conf = d["images"], d["depth_conf"]
 
 
@@ -277,7 +266,7 @@ if args.frames:
 
     def fine_image(k: int) -> np.ndarray:
         """Source frame k as float32 RGB 0-1, oriented and stretched like the
-        model's input (reconstruct.py), at FINE x its size."""
+        model's input at reconstruction, at FINE x its size."""
         img = ImageOps.exif_transpose(Image.open(frame_paths[k])).convert("RGB")
         if img.height > img.width:
             img = img.transpose(Image.ROTATE_270)
@@ -340,10 +329,6 @@ def fit_budget(grid, voxel: float, budget: int, name: str):
     return grid, voxel
 
 
-# The grid is kept within twice the detail budget while it fills: past that,
-# it is coarsened right away (as it would be at the end) and the next frames
-# go into the coarser voxels. Peak memory then follows the budget, not the
-# length of the transect (463 frames: 80 M voxels, 10 GB, before this).
 # Blue veil. With consistent camera poses, many distant low-confidence pixels
 # pass the agreement test above, and part of them is haze: in front of distant
 # reef the model predicts a smooth surface that close-together frames all agree
@@ -381,6 +366,26 @@ def in_free_space(world_k: np.ndarray, k: int) -> np.ndarray:
     return through
 
 
+# Detail budget: proportional to the video covered, capped by memory. The voxel
+# grid holds up to twice the budget while it fills, ~125 bytes per voxel at the
+# merge peak (80 M voxels took 10 GB). Frames waiting to be merged come on top
+# (a batch of PENDING_FRAMES, every pixel kept at worst, ~64 bytes each and
+# copied once when merged), and the rest of the export and the system need
+# room too: the grid gets half the RAM left after the pending batch.
+PEAK_BYTES_PER_BUDGET_POINT = 2 * 125
+PENDING_FRAMES = 32
+video_seconds = len(depth) / meta["fps"]
+ram = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
+pending_bytes = PENDING_FRAMES * H * W * (FINE * FINE if fine else 1) * 64 * 2
+memory_cap = int((ram - pending_bytes) / 2 / PEAK_BYTES_PER_BUDGET_POINT)
+max_detail_points = min(int(args.detail_points_per_second * video_seconds), memory_cap)
+print(f"detail budget {max_detail_points:,} points ({video_seconds:.0f} s of video"
+      f"{', capped by memory' if max_detail_points == memory_cap else ''})")
+
+# The grid is kept within twice the detail budget while it fills: past that,
+# it is coarsened right away (as it would be at the end) and the next frames
+# go into the coarser voxels. Peak memory then follows the budget, not the
+# length of the transect (463 frames: 80 M voxels, 10 GB, before this).
 depth_voxel = voxel
 grid = (np.empty(0, np.int64), np.empty((0, 6)), np.empty(0))
 pending, n_confident, n_agreeing, n_kept = [], 0, 0, 0
@@ -404,7 +409,7 @@ for k in range(len(depth)):
     n_kept += int(keep.sum())
     pts, rgb = fine(k, keep) if fine else (world_k[keep], image(k)[keep])
     pending.append((voxel_keys(pts, voxel), np.hstack([pts, rgb]), np.ones(len(pts))))
-    if len(pending) == 32 or k == len(depth) - 1:
+    if len(pending) == PENDING_FRAMES or k == len(depth) - 1:
         grid = merge(*(np.concatenate([g, *(p[i] for p in pending)]) for i, g in enumerate(grid)))
         pending = []
         if len(grid[0]) > 2 * max_detail_points:
@@ -429,7 +434,7 @@ del dist, mean_d
 print(f"outliers removed {(~inlier).sum():,} -> {len(pts):,} points")
 
 # Portrait frames: LingBot-Map turns them 90 deg clockwise before reconstructing
-# (create_map.py, any image taller than wide), so its world frame, the first
+# (any image taller than wide), so its world frame, the first
 # camera's, lies on its side: the image's up points along +x instead of -y,
 # and the viewer would show the reef and the diver's-eye view rolled by 90 deg.
 # Express everything in the upright camera's frame instead: a pixel turned
