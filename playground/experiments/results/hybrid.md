@@ -5,7 +5,8 @@ the step 1 probe) and correcting LingBot's dense depth towards the SfM points
 give a more consistent cloud than LingBot alone?
 
 The hybrid step writes a changed reconstruction; the unchanged export and metrics
-score it. Variants, each adding to the previous one:
+score it. Variants, each adding to the previous one (after round 4 only
+`lingbot` and `hybrid-depth`, now named `hybrid`, are kept in the bench):
 
 - `lingbot`: LingBot alone, trimmed to the frames SfM covers (the reference);
 - `hybrid-poses`: SfM poses and focal, brought into LingBot's frame and scale;

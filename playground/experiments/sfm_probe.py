@@ -10,21 +10,16 @@ Reuses a finished bench run (its frames and recon.npz), so LingBot is not
 re-run. Two stages, run as separate processes: PyTorch (feature matching) and
 pycolmap (mapping) load clashing OpenMP runtimes in one process.
 
-  python sfm_probe.py match <run-dir> <variant> [seconds]   # SuperPoint + LightGlue
-  python sfm_probe.py map   <run-dir> <variant> [seconds]   # COLMAP incremental SfM + scores
+  python sfm_probe.py match <run-dir> [seconds]   # SuperPoint + LightGlue
+  python sfm_probe.py map   <run-dir> [seconds]   # COLMAP incremental SfM + scores
 
 [seconds] keeps only the start of the excerpt, to bound the run time.
-
-Variants change only what the feature extractor sees, never LingBot's input:
-  raw       frames as given to LingBot
-  contrast  strong local contrast (CLAHE) on the grey image, to lift reef
-            texture out of the haze for matching
 
 Pairs follow the LingBot path: each frame is matched with its next few
 neighbours, plus any later frame whose LingBot camera sits as close and looks
 the same way (revisits, e.g. outbound and return legs).
 
-Output: <run-dir>/sfm-<variant>[-<seconds>s]/ (database, model, sfm.json).
+Output: <run-dir>/sfm[-<seconds>s]/ (database, model, sfm.json).
 """
 
 import json
@@ -76,7 +71,7 @@ def pairs_along_path(run, n):
     return sorted(pairs)
 
 
-def stage_match(run, variant, out):
+def stage_match(run, out):
     import cv2
     import torch
     from lightglue import LightGlue, SuperPoint
@@ -84,7 +79,6 @@ def stage_match(run, variant, out):
     device = "mps" if torch.backends.mps.is_available() else "cpu"
     extractor = SuperPoint(max_num_keypoints=MAX_KEYPOINTS).eval().to(device)
     matcher = LightGlue(features="superpoint").eval().to(device)
-    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
 
     paths = frame_paths(run)
     feats, keypoints = [], {}
@@ -92,8 +86,6 @@ def stage_match(run, variant, out):
     with torch.inference_mode():
         for i, p in enumerate(paths):
             grey = cv2.imread(str(p), cv2.IMREAD_GRAYSCALE)
-            if variant == "contrast":
-                grey = clahe.apply(grey)
             img = torch.from_numpy(grey).float()[None, None].to(device) / 255.0
             f = extractor.extract(img)
             feats.append(f)
@@ -127,7 +119,7 @@ def align(rot_sfm_c2w, centres_sfm, rot_lb_c2w, centres_lb):
     return s, r, centres_lb.mean(0) - s * r @ centres_sfm.mean(0)
 
 
-def stage_map(run, variant, out):
+def stage_map(run, out):
     import pycolmap
     from PIL import Image
 
@@ -172,7 +164,7 @@ def stage_map(run, variant, out):
     t_map = time.time() - t0 - t_verify
 
     sizes = sorted((m.num_reg_images() for m in models.values()), reverse=True)
-    result = {"variant": variant, "frames": len(paths), "models": len(models), "modelSizes": sizes,
+    result = {"frames": len(paths), "models": len(models), "modelSizes": sizes,
               "registeredLargest": round(sizes[0] / len(paths), 3) if sizes else 0.0,
               "registeredAll": round(sum(sizes) / len(paths), 3),
               "verifySeconds": round(t_verify, 1), "mappingSeconds": round(t_map, 1)}
@@ -205,13 +197,13 @@ def stage_map(run, variant, out):
             "rotationErrorMedianDeg": round(float(np.median(ang)), 2),
         })
         pts = np.array([p.xyz for p in best.points3D.values()])
-        plot(out / "probe.png", run, variant, result, centres_lb[frames], aligned,
+        plot(out / "probe.png", run, result, centres_lb[frames], aligned,
              (s * (r @ pts.T)).T + t, rot_lb, frames, ang)
     (out / "sfm.json").write_text(json.dumps(result, indent=2))
     print(json.dumps(result))
 
 
-def plot(path, run, variant, result, path_lb, path_sfm, points, rot_lb, frames, ang):
+def plot(path, run, result, path_lb, path_sfm, points, rot_lb, frames, ang):
     """Top and side views of both camera paths with SfM's sparse points, and
     the orientation gap per frame. Axes come from the data: along the path,
     across it, and the cameras' mean viewing direction (down onto the reef)."""
@@ -242,7 +234,7 @@ def plot(path, run, variant, result, path_lb, path_sfm, points, rot_lb, frames, 
     ax[2].plot(frames, ang, c="#3a7ca5")
     ax[2].set_xlabel("frame"); ax[2].set_ylabel("orientation gap (deg)")
     ax[2].set_ylim(bottom=0)
-    fig.suptitle(f"{run.parent.name} / {variant}: {result['registeredLargest']:.0%} registered in one model, "
+    fig.suptitle(f"{run.parent.name}: {result['registeredLargest']:.0%} registered in one model, "
                  f"{result['models']} model(s), {result['points3D']} points, reproj {result['meanReprojError']} px\n"
                  f"position gap {result['positionErrorMedian']:.1%} of path, orientation gap median "
                  f"{result['rotationErrorMedianDeg']} deg", fontsize=10)
@@ -253,15 +245,15 @@ def plot(path, run, variant, result, path_lb, path_sfm, points, rot_lb, frames, 
 
 def main():
     global LIMIT
-    stage, run, variant = sys.argv[1], Path(sys.argv[2]).resolve(), sys.argv[3]
-    seconds = float(sys.argv[4]) if len(sys.argv) > 4 else None
+    stage, run = sys.argv[1], Path(sys.argv[2]).resolve()
+    seconds = float(sys.argv[3]) if len(sys.argv) > 3 else None
     suffix = ""
     if seconds:
         LIMIT = round(seconds * json.loads((run / "frames.json").read_text())["fps"])
         suffix = f"-{seconds:g}s"
-    out = run / f"sfm-{variant}{suffix}"
+    out = run / f"sfm{suffix}"
     out.mkdir(exist_ok=True)
-    {"match": stage_match, "map": stage_map}[stage](run, variant, out)
+    {"match": stage_match, "map": stage_map}[stage](run, out)
 
 
 if __name__ == "__main__":

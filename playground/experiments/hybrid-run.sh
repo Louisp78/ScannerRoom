@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Hybrid SfM + LingBot-Map on one transect excerpt, end to end: the LingBot
-# baseline bench run, SfM along the LingBot path, then the hybrid variants,
+# baseline bench run, SfM along the LingBot path, then the hybrid run,
 # each exported and scored like any bench run.
 #
 # Usage: START=28 DURATION=32 ./hybrid-run.sh <transect-key>
-# Output: out/experiments/<key>-<start>s-<duration>s/{baseline,hybrid-depth,hybrid-gate}/
-#         and baseline/sfm-raw/ (SfM model, probe.png)
+# Output: out/experiments/<key>-<start>s-<duration>s/{baseline,hybrid}/
+#         and baseline/sfm/ (SfM model, probe.png)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -22,13 +22,11 @@ echo "baseline $(cat "$SET/baseline/metrics.json" | tr -d '\n ')"
 
 # PyTorch and pycolmap load clashing OpenMP runtimes: matching runs alone,
 # with the duplicate tolerated.
-KMP_DUPLICATE_LIB_OK=TRUE "$SFM" -I sfm_probe.py match "$SET/baseline" raw > /dev/null 2>&1
-"$SFM" -I sfm_probe.py map "$SET/baseline" raw > "$SET/baseline/sfm-raw/map.log" 2>&1
-echo "sfm $(tail -1 "$SET/baseline/sfm-raw/map.log")"
+KMP_DUPLICATE_LIB_OK=TRUE "$SFM" -I sfm_probe.py match "$SET/baseline" > /dev/null 2>&1
+"$SFM" -I sfm_probe.py map "$SET/baseline" > "$SET/baseline/sfm/map.log" 2>&1
+echo "sfm $(tail -1 "$SET/baseline/sfm/map.log")"
 
-for variant in hybrid-depth hybrid-gate; do
-  "$SFM" -I hybrid.py "$SET/baseline" "$SET/baseline/sfm-raw" "$variant" > /dev/null
-  "$LINGBOT" -I "$ROOT/scripts/export-web.py" "$SET/$variant/recon.npz" "$SET/$variant/frames.json" "$SET/$variant/web" \
-    > "$SET/$variant/log.txt" 2>&1
-  echo "$variant $(tr -d '\n ' < "$SET/$variant/hybrid.json") $("$LINGBOT" -I metrics.py "$SET/$variant" | tail -1)"
-done
+"$SFM" -I hybrid.py "$SET/baseline" "$SET/baseline/sfm" hybrid > /dev/null
+"$LINGBOT" -I "$ROOT/scripts/export-web.py" "$SET/hybrid/recon.npz" "$SET/hybrid/frames.json" "$SET/hybrid/web" \
+  > "$SET/hybrid/log.txt" 2>&1
+echo "hybrid $(tr -d '\n ' < "$SET/hybrid/hybrid.json") $("$LINGBOT" -I metrics.py "$SET/hybrid" | tail -1)"

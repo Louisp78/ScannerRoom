@@ -29,14 +29,12 @@ cd playground && python3 -m http.server 8000
 # http://localhost:8000/experiments/compare.html?set=tab-south-0s-20s
 ```
 
-Pre-processing needs its own Python env (PyTorch, transformers), kept apart
-from LingBot-Map's:
+Pre-processing needs its own Python env, kept apart from LingBot-Map's:
 
 ```bash
 cd playground/vendor
 python3.10 -m venv .venv-enhance
-.venv-enhance/bin/pip install torch torchvision transformers opencv-python scipy pillow
-git clone --depth 1 https://github.com/xahidbuffon/FUnIE-GAN.git
+.venv-enhance/bin/pip install opencv-python numpy
 ```
 
 The hybrid bench (photogrammetry fixing LingBot's camera path, see
@@ -73,6 +71,9 @@ therefore proves nothing; a variant counts only when it leaves the band set by
 Question: can editing the frames before LingBot-Map (no change to the model or
 the export) make the reconstruction better? 60 frames at 3 fps, decoded at
 1036 px (twice the model's input) for every variant.
+
+Only `baseline`, `control` and `contrast` are still in the bench; the other
+variants were removed after this round (git history has them).
 
 | Variant | What it does |
 | --- | --- |
@@ -144,7 +145,7 @@ detections before / after inpainting (`fish-detections.jpg`).
 
 1. Validate `contrast` on a second transect (a NOAA one, deeper and bluer),
    with 2-3 seeds, and look at both clouds in `compare.html`.
-2. Fish: pick a fish-rich excerpt; compare inpainting with masking the fish
-   pixels out of the export (no invented texture).
+2. Fish: if a fish-rich excerpt shows ghosts, mask the fish pixels out of
+   the export rather than inpainting them (no invented texture).
 3. Round 2: changes beyond pre-processing (model input size, frame rate,
    export-side filtering).

@@ -1,24 +1,20 @@
 """Hybrid reconstruction on a bench run (step 2): SfM fixes the camera path,
 LingBot-Map keeps the dense depth.
 
-  python hybrid.py <run-dir> <sfm-dir> <variant>
+  python hybrid.py <run-dir> <sfm-dir> <mode>
 
 Reads the run's recon.npz and the SfM model written by the SfM probe, writes a
 new run next to <run-dir> (same frames) whose recon.npz is changed, so the
 unchanged export and metrics can score it:
 
-  lingbot       unchanged, only trimmed to the frames SfM covers: the reference.
-  hybrid-poses  SfM camera poses and focal, brought into LingBot's frame and
-                scale. LingBot depth untouched.
-  hybrid-depth  + each frame's LingBot depth corrected towards the SfM points
-                it sees: a smooth correction field, so the model's relief is
-                kept and only its scale and slow distortions are fixed.
-  hybrid-gate   + a confident pixel stays confident only if the neighbouring
-                frames agree with it. Water haze moves with the camera and
-                fails this test; reef, near or far, passes it.
+  lingbot  unchanged, only trimmed to the frames SfM covers: the reference.
+  hybrid   SfM camera poses and focal, brought into LingBot's frame and
+           scale, and each frame's LingBot depth corrected towards the SfM
+           points it sees: a smooth correction field, so the model's relief
+           is kept and only its scale and slow distortions are fixed.
 
-Suffix -lbfocal (e.g. hybrid-depth-lbfocal): keep LingBot's focal and
-principal point instead of SfM's; poses and depth are corrected the same way.
+Poses alone, LingBot's focal instead of SfM's, and gating confident pixels by
+agreement were tried and dropped (see the hybrid results).
 
 Frames SfM did not register, or registered without real geometry, keep
 LingBot's motion, attached to the nearest trusted frame.
@@ -34,8 +30,6 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from sfm_probe import align  # noqa: E402
 
-CONF = 1.05                               # export's confidence threshold
-AGREE_FRAMES, AGREE_TOL = 3, 0.05         # export's multi-view check
 FIELD_SIGMA = 0.1                         # correction field smoothness, share of image width
 OUTLIER_MAD = 3
 MAX_SCALE_DRIFT = 1.5                     # SfM / LingBot depth ratio vs its local median, to trust a frame
@@ -80,36 +74,12 @@ def correction_field(xy, log_ratio, h, w):
     return (num + prior * np.median(log_ratio[ok])) / (den + prior)
 
 
-def agreement_votes(depth, c2w, K, k):
-    """How many frames among k +- AGREE_FRAMES see frame k's pixels at the
-    depth they predict (within AGREE_TOL), and how many see them at all."""
-    S, H, W = depth.shape
-    u, v = np.meshgrid(np.arange(W), np.arange(H))
-    z = depth[k].astype(np.float64)
-    cam = np.stack([(u - K[k, 0, 2]) / K[k, 0, 0] * z, (v - K[k, 1, 2]) / K[k, 1, 1] * z, z], -1)
-    pts = cam @ c2w[k, :, :3].T + c2w[k, :, 3]
-    votes, seen = np.zeros((H, W), int), np.zeros((H, W), int)
-    for j in range(max(0, k - AGREE_FRAMES), min(S, k + AGREE_FRAMES + 1)):
-        if j == k:
-            continue
-        q = (pts - c2w[j, :, 3]) @ c2w[j, :, :3]
-        with np.errstate(divide="ignore", invalid="ignore"):
-            x = np.round(K[j, 0, 0] * q[..., 0] / q[..., 2] + K[j, 0, 2])
-            y = np.round(K[j, 1, 1] * q[..., 1] / q[..., 2] + K[j, 1, 2])
-        inside = (q[..., 2] > 0) & (x >= 0) & (x < W) & (y >= 0) & (y < H)
-        xi, yi = np.where(inside, x, 0).astype(int), np.where(inside, y, 0).astype(int)
-        agree = inside & (np.abs(np.log(depth[j, yi, xi] / np.where(inside, q[..., 2], 1))) < AGREE_TOL)
-        seen += inside
-        votes += agree
-    return votes, seen
-
-
 def main():
     from PIL import Image
 
-    run, sfm_dir, variant = Path(sys.argv[1]).resolve(), Path(sys.argv[2]).resolve(), sys.argv[3]
-    mode = variant.removesuffix("-lbfocal")
-    keep_focal = mode != variant
+    run, sfm_dir, mode = Path(sys.argv[1]).resolve(), Path(sys.argv[2]).resolve(), sys.argv[3]
+    if mode not in ("lingbot", "hybrid"):
+        sys.exit(f"Unknown mode {mode}; known: lingbot, hybrid")
     n_sfm = json.loads((sfm_dir / "match.json").read_text())["frames"]
     names = sorted(p.name for p in (run / "frames").glob("*.jpg"))[:n_sfm]
     src_w, src_h = Image.open(run / "frames" / names[0]).size
@@ -144,6 +114,8 @@ def main():
     vals = np.array([log_scale[k] for k in keys])
     reg = [int(k) for k, m in zip(keys, vals)
            if abs(m - np.median(vals[np.abs(keys - k) <= half])) < np.log(MAX_SCALE_DRIFT)]
+    if not reg:
+        sys.exit("SfM has no frame consistent with LingBot: nothing to correct")
     rot_sfm = np.array([frames[k][0] for k in reg])
     cen_sfm = np.array([frames[k][1] for k in reg])
     s, r, t = align(rot_sfm, cen_sfm, c2w[reg, :, :3], c2w[reg, :, 3])
@@ -163,12 +135,12 @@ def main():
             new[k, :, :3] = fix_r @ c2w[k, :, :3]
             new[k, :, 3] = new[j, :, 3] + fix_r @ (c2w[k, :, 3] - c2w[j, :, 3])
     f = cam.params[0]
-    if reg and not keep_focal:
+    if reg:
         K[:, 0, 0], K[:, 1, 1] = f * sx, f * sy
         K[:, 0, 2], K[:, 1, 2] = (cam.params[1] + 0.5) * sx - 0.5, (cam.params[2] + 0.5) * sy - 0.5
-    info = {"variant": variant, "frames": S, "registeredSfm": len(frames), "trusted": len(reg)}
+    info = {"mode": mode, "frames": S, "registeredSfm": len(frames), "trusted": len(reg)}
 
-    if mode in ("hybrid-depth", "hybrid-gate"):
+    if mode == "hybrid":
         scales = []
         for k in reg:
             _, _, xy, z_sfm = frames[k]
@@ -183,22 +155,10 @@ def main():
             scales.append(float(np.exp(np.median(log_ratio))))
         info["depthScale"] = [round(float(np.percentile(scales, p)), 3) for p in (10, 50, 90)]
 
-    if mode == "hybrid-gate":
-        conf = d["depth_conf"].copy()
-        dropped = 0
-        for k in range(S):
-            votes, seen = agreement_votes(depth, new, K, k)
-            # Confident but contradicted by the frames that can see it.
-            bad = (conf[k] > CONF) & (seen >= 2) & (votes * 2 < seen)
-            conf[k][bad] = 1.0
-            dropped += int(bad.sum())
-        d["depth_conf"] = conf
-        info["confidentDropped"] = round(dropped / max(1, int((d["depth_conf"] > CONF).sum()) + dropped), 3)
-
     d["extrinsic_w2c"] = new.astype(np.float32)  # keep the port's field naming
     d["intrinsic"] = K.astype(np.float32)
     d["depth"] = depth[..., None].astype(np.float32)
-    out = run.parent / (variant + sfm_dir.name.removeprefix("sfm-raw").removeprefix("sfm-contrast"))
+    out = run.parent / (mode + sfm_dir.name.removeprefix("sfm"))
     out.mkdir(exist_ok=True)
     (out / "frames").mkdir(exist_ok=True)
     for name in names:
