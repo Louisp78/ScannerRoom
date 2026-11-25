@@ -163,8 +163,11 @@ Cleaning chains four filters:
    differs between reconstructions, the voxel edge is the footprint of one depth
    pixel at the median depth of the confident pixels: as fine as the depth maps
    go, the same relative detail whatever the transect, and far points do not
-   coarsen it. Past `MAX_DETAIL_POINTS` (12 M by default, ~108 MB on disk) the
-   voxels are merged into coarser ones until the cloud fits. Frames are merged
+   coarsen it. The detail budget grows with the video's length
+   (`DETAIL_POINTS_PER_SECOND`, 250 k points, ~2.3 MB on disk, per second of
+   video), so a full transect keeps the detail of a short excerpt; it is capped
+   by the machine's memory. Past the budget the voxels are merged into coarser
+   ones until the cloud fits. Frames are merged
    into the grid as they come, and the grid is coarsened as soon as it holds
    twice the budget, so peak RAM follows the budget, not the length of the
    transect: ~7.4 GB on both 111 and 463 frames (10 GB on 463 frames when
@@ -197,7 +200,7 @@ per side; the detail level is now one model pixel (~0.3 %), or half of one with
 fine depth, within the storage budget.
 
 ```bash
-CONF=1.2 MAX_DETAIL_POINTS=8000000 ./04-export-web.sh
+CONF=1.2 DETAIL_POINTS_PER_SECOND=100000 ./04-export-web.sh
 ```
 
 ### Trap: the MLX port inverts the camera poses

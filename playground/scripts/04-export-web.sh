@@ -7,7 +7,7 @@
 # Env:   CONF (default 1.05, depth-confidence threshold),
 #        PATH_SMOOTH / HEADING_SMOOTH (default 1.0 / 1.5, seconds of video),
 #        MAX_POINTS (default 2000000, web budget of the overview cloud),
-#        MAX_DETAIL_POINTS (default 12000000, storage budget of the detail tiles)
+#        DETAIL_POINTS_PER_SECOND (default 250000, detail tiles budget per second of video)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -34,7 +34,7 @@ fi
 "$PY" -I "$ROOT/scripts/export-web.py" "$SRC" "$META" "$DEST" "${FRAMES_ARG[@]}" \
   --conf "${CONF:-1.05}" \
   --path-smooth "${PATH_SMOOTH:-1.0}" --heading-smooth "${HEADING_SMOOTH:-1.5}" \
-  --max-points "${MAX_POINTS:-2000000}" --max-detail-points "${MAX_DETAIL_POINTS:-12000000}"
+  --max-points "${MAX_POINTS:-2000000}" --detail-points-per-second "${DETAIL_POINTS_PER_SECOND:-250000}"
 
 # Same timeline as the source (path.json times stay valid), small and muted:
 # it only plays in a thumbnail. faststart lets the browser seek before the end

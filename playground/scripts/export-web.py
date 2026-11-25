@@ -30,7 +30,8 @@ Cleaning steps, in order:
    depth pixel (the model's, or the fine depth's with --frames) at the median
    depth of the kept pixels: as fine as the depth maps go, the same relative
    detail everywhere. If that exceeds the
-   --max-detail-points storage budget, the voxel grows until it fits.
+   detail budget (proportional to the video's length, capped by memory),
+   the voxel grows until it fits.
 4. Statistical outlier removal on the downsampled cloud.
 5. Overview: the detail cloud regrouped into coarser voxels until it fits the
    --max-points budget, what a browser loads comfortably in one go.
@@ -44,6 +45,7 @@ videos that frame is first turned back upright (see "portrait frames" below).
 """
 import argparse
 import json
+import os
 import shutil
 from pathlib import Path
 
@@ -68,13 +70,29 @@ parser.add_argument("--path-smooth", type=float, default=1.0)
 parser.add_argument("--heading-smooth", type=float, default=1.5)
 # Web budget of the overview: ~16 bytes per point in cloud.ply, so 2 M points is ~32 MB.
 parser.add_argument("--max-points", type=int, default=2_000_000)
-# Storage budget of the detail tiles: 9 bytes per point, so 12 M points is
-# ~108 MB on disk. Browsers only download the tiles near the camera.
-parser.add_argument("--max-detail-points", type=int, default=12_000_000)
+# Budget of the detail tiles, per second of video covered: a longer swim covers
+# more reef, so it gets proportionally more points and keeps the same detail.
+# 250 k/s is the full model resolution measured on a 3 fps excerpt (site3
+# transect 3, 21 s: 4.9 M points at one depth pixel per voxel); at 9 bytes per
+# point that is ~2.3 MB of tiles per second of video. Browsers only download
+# the tiles near the camera.
+parser.add_argument("--detail-points-per-second", type=int, default=250_000)
 args = parser.parse_args()
 
 d = np.load(args.npz, allow_pickle=False)
 meta = json.loads(Path(args.meta).read_text())
+
+# Detail budget: proportional to the video covered, capped by memory. The voxel
+# grid holds up to twice the budget while it fills, ~125 bytes per voxel at the
+# merge peak (80 M voxels took 10 GB), and must leave room for the rest of the
+# export and the system: half the machine's RAM at most.
+PEAK_BYTES_PER_BUDGET_POINT = 2 * 125
+video_seconds = len(d["depth"]) / meta["fps"]
+ram = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
+memory_cap = int(ram / 2 / PEAK_BYTES_PER_BUDGET_POINT)
+max_detail_points = min(int(args.detail_points_per_second * video_seconds), memory_cap)
+print(f"detail budget {max_detail_points:,} points ({video_seconds:.0f} s of video"
+      f"{', capped by memory' if max_detail_points == memory_cap else ''})")
 # reconstruct.py stores images as uint8, the port's create_map.py as float 0-1.
 imgs, conf = d["images"], d["depth_conf"]
 
@@ -351,8 +369,8 @@ for k in range(len(depth)):
     if len(pending) == 32 or k == len(depth) - 1:
         grid = merge(*(np.concatenate([g, *(p[i] for p in pending)]) for i, g in enumerate(grid)))
         pending = []
-        if len(grid[0]) > 2 * args.max_detail_points:
-            grid, voxel = fit_budget(grid, voxel, args.max_detail_points, "detail")
+        if len(grid[0]) > 2 * max_detail_points:
+            grid, voxel = fit_budget(grid, voxel, max_detail_points, "detail")
 
 n_pixels = depth.size
 print(f"confident pixels {n_confident / n_pixels * 100:.1f}%, + agreeing views {n_agreeing / n_pixels * 100:.1f}%, "
@@ -360,7 +378,7 @@ print(f"confident pixels {n_confident / n_pixels * 100:.1f}%, + agreeing views {
 print(f"depth pixel voxel {depth_voxel:.5f} ({depth_voxel / median_depth:.4f} x median depth), "
       f"now {voxel:.5f}: {len(grid[0]):,} points")
 
-grid, detail_voxel = fit_budget(grid, voxel, args.max_detail_points, "detail")
+grid, detail_voxel = fit_budget(grid, voxel, max_detail_points, "detail")
 _, sums, counts = grid
 pts, cols = sums[:, :3] / counts[:, None], sums[:, 3:] / counts[:, None]
 del grid, sums
