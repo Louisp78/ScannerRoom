@@ -20,3 +20,4 @@
 
 - [Brand identity](./docs/brand.md)
 - [Application specifications](./docs/specs.md)
+- [Transect sources](./docs/transect-sources.md)
