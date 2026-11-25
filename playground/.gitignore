@@ -1,5 +1,6 @@
 # Heavy pipeline artifacts: reproducible from the scripts, never committed.
 transects/*.mp4
+transects/*.part
 frames/
 reconstruction/
 out/
