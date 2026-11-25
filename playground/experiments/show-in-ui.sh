@@ -41,8 +41,12 @@ KEYS=()
 for run in "$SET"/*/; do
   run="$(basename "$run")"
   [ -s "$SET/$run/web/cloud.ply" ] || continue
-  # Transect keys are lowercase words joined by '-'.
-  key="$KEY-exp-$(printf '%s' "$run" | tr '+_' '--' | tr -cd 'a-z0-9-')"
+  # Transect keys are lowercase words joined by '-'. A set other than the
+  # default one adds its excerpt (e.g. 28s-32s), so several excerpts of one
+  # transect can be on the map at once.
+  tag="$run"
+  [ -z "${2:-}" ] || tag="${2#"$KEY"-}-$run"
+  key="$KEY-exp-$(printf '%s' "$tag" | tr '+_.' '---' | tr -cd 'a-z0-9-')"
   dest="$ROOT/public/transects/$key"
   mkdir -p "$dest"
   rm -rf "$dest/tiles"
@@ -61,7 +65,7 @@ sites = json.load(open(p))
 origin = next(s for s in sites if s["transectKey"] == base)
 sites = [s for s in sites if s["transectKey"] not in keys]
 for i, key in enumerate(keys, 1):
-    run = key[len(base) + len("-exp-"):]
+    run = key[len(base) + len("-exp-"):]  # excerpt and run
     sites.append({"transectKey": key, "name": f"{origin['name']} · exp {run}",
                   "lat": origin["lat"], "lon": round(origin["lon"] + 0.0003 * i, 6)})
 open(p, "w").write(json.dumps(sites, indent=2, ensure_ascii=False) + "\n")

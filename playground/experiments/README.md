@@ -39,6 +39,19 @@ python3.10 -m venv .venv-enhance
 git clone --depth 1 https://github.com/xahidbuffon/FUnIE-GAN.git
 ```
 
+The hybrid bench (photogrammetry fixing LingBot's camera path, see
+`results/hybrid.md`) needs a third env, with COLMAP and learned feature
+matching:
+
+```bash
+cd playground/vendor
+python3.10 -m venv .venv-sfm
+.venv-sfm/bin/pip install pycolmap torch opencv-python-headless scipy matplotlib \
+  "git+https://github.com/cvg/LightGlue.git"
+cd ../experiments
+START=90 DURATION=30 ./hybrid-run.sh site3-transect2-north   # LingBot, SfM, hybrid, scores
+```
+
 ## Metrics
 
 All scale-free (`metrics.py`). Coverage: `confident` (pixels above the export's
