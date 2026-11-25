@@ -344,6 +344,43 @@ def fit_budget(grid, voxel: float, budget: int, name: str):
 # it is coarsened right away (as it would be at the end) and the next frames
 # go into the coarser voxels. Peak memory then follows the budget, not the
 # length of the transect (463 frames: 80 M voxels, 10 GB, before this).
+# Blue veil. With consistent camera poses, many distant low-confidence pixels
+# pass the agreement test above, and part of them is haze: in front of distant
+# reef the model predicts a smooth surface that close-together frames all agree
+# with, and it comes out as veils of blue points. A recovered pixel is dropped
+# when either test says it is haze:
+# - colour: it is closer to the frame's open-water colour than HAZE_SHARE of
+#   the reef's typical distance to it;
+# - free space: a frame WIDE_SECONDS away looks through where the point should
+#   be (it sees further, beyond AGREE_TOL). Seeing nearer is an occlusion and
+#   proves nothing, so distant reef seen again stays: no distance cut-off.
+# Confident pixels are left alone: testing them too removed reef, not more blue.
+# On site3 transect 3 (full) water-blue points fell from 35 to 24 % (LingBot
+# poses) and 44 to 28 % (SfM-corrected poses), local contrast slightly up;
+# 40-50 % fewer on excerpts of three other stretches.
+HAZE_SHARE, WIDE_SECONDS = 0.5, 3.0
+
+
+def hazy(img: np.ndarray, contrast: np.ndarray, reef: np.ndarray) -> np.ndarray:
+    open_water = (img[..., 2] - img[..., 0] > 0.25) & (contrast < 4)
+    if open_water.sum() < 500 or reef.sum() < 500:
+        return np.zeros(img.shape[:2], bool)
+    water_rgb = np.median(img[open_water], 0)
+    reef_gap = np.median(np.linalg.norm(img[reef] - water_rgb, axis=1))
+    return np.linalg.norm(img - water_rgb, axis=-1) < HAZE_SHARE * reef_gap
+
+
+def in_free_space(world_k: np.ndarray, k: int) -> np.ndarray:
+    gap = max(AGREE_FRAMES + 1, round(WIDE_SECONDS * meta["fps"]))
+    through = np.zeros((H, W), bool)
+    for j in (k - gap, k + gap):
+        if 0 <= j < len(depth):
+            inside, x, y, z = project(world_k, j)
+            with np.errstate(divide="ignore", invalid="ignore"):
+                through |= inside & (np.log(depth[j, y, x] / z) > AGREE_TOL)
+    return through
+
+
 depth_voxel = voxel
 grid = (np.empty(0, np.int64), np.empty((0, 6)), np.empty(0))
 pending, n_confident, n_agreeing, n_kept = [], 0, 0, 0
@@ -360,6 +397,7 @@ for k in range(len(depth)):
     # A frame with no confident reef (diver looking at open water) recovers nothing.
     textured = contrast >= np.percentile(surface, 10) if surface.size else np.zeros((H, W), bool)
     agreeing = ~confident[k] & textured & (votes >= AGREE_VOTES)
+    agreeing &= ~(hazy(image(k), contrast, confident[k] & ~water[k]) | in_free_space(world_k, k))
     keep = (confident[k] | agreeing) & ~water[k]
     n_confident += int(confident[k].sum())
     n_agreeing += int(agreeing.sum())
