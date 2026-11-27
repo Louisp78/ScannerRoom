@@ -45,6 +45,12 @@ before starting the next. Strictly one at a time: a full-length reconstruction
 uses most of the RAM of a 16-18 GB Mac. Count ~45 min per 12 min transect on an
 M3 Pro.
 
+A cleaned video, `transects/<key>-clean.mp4` (divers blocking the reef cut out
+by the `clean-transect-video` skill), replaces the original wherever it exists:
+frames are extracted from it, the viewer's video and timestamps follow its
+timeline, and the build skips the download and keeps it afterwards. Measured
+gains are in [the experiment results](experiments/results/clean-transect-video.md).
+
 Each step writes to its own folder (`transects/`, `frames/`, `out/`), all ignored
 by git: these artefacts are heavy and can be reproduced from the scripts. Any
 sub-folder of `frames/` is a valid key.

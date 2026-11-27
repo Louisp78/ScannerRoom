@@ -20,7 +20,10 @@ START="${START:-0}"
 # LingBot-Map's temporal embedding covers 1024 frames; keep a margin.
 MAX_FRAMES=1000
 
-SRC="$ROOT/transects/$KEY.mp4"
+# A cleaned copy (divers cut out by the clean-transect-video skill) is used
+# instead of the original when there is one: it reconstructs better.
+SRC="$ROOT/transects/$KEY-clean.mp4"
+[ -s "$SRC" ] || SRC="$ROOT/transects/$KEY.mp4"
 DEST="$ROOT/frames/$KEY"
 
 [ -s "$SRC" ] || { echo "Missing $SRC — run 01-fetch-transect.sh first." >&2; exit 1; }
@@ -48,8 +51,9 @@ IFS=x read -r W H < <(ffprobe -v error -select_streams v:0 -show_entries stream=
 PORTRAIT=$([ "$H" -gt "$W" ] && echo true || echo false)
 
 # Sidecar next to (not inside) the frame folder, so the reconstruction only sees
-# images. 04-export-web.sh uses it to timestamp each frame in the source video.
-printf '{"video": "%s", "fps": %s, "start": %s, "length": %s, "portrait": %s}\n' \
-  "$KEY.mp4" "$FPS" "$START" "$LENGTH" "$PORTRAIT" > "$DEST.json"
+# images. 04-export-web.sh uses it to timestamp each frame in the source video
+# ("source"), and publishes that video under the name in "video".
+printf '{"video": "%s", "source": "%s", "fps": %s, "start": %s, "length": %s, "portrait": %s}\n' \
+  "$KEY.mp4" "$(basename "$SRC")" "$FPS" "$START" "$LENGTH" "$PORTRAIT" > "$DEST.json"
 
 echo "Extracted $(ls "$DEST" | wc -l | tr -d ' ') frames at $FPS fps to $DEST"

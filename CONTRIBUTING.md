@@ -72,6 +72,11 @@ cd playground/scripts
 ```
 
 Count about 45 min per 12 min transect on an M3 Pro, strictly one at a time.
+
+Divers blocking the reef degrade the reconstruction. To cut them out first,
+download the video (`./01-fetch-transect.sh <key>`), then ask Claude Code to
+clean it (the `clean-transect-video` skill): it writes a cleaned copy next to
+the original, which the build then uses instead, and keeps after the build.
 Each step can also be run on its own; see the
 [pipeline documentation](playground/README.md) for the steps and their settings.
 

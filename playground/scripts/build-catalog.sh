@@ -50,9 +50,12 @@ for key in "${KEYS[@]}"; do
       "$HERE/02-extract-frames.sh" "$key" && "$HERE/03-reconstruct.sh" "$key"
     }
   fi
-  if "$HERE/01-fetch-transect.sh" "$key" && reconstruct && "$HERE/04-export-web.sh" "$key" &&
+  # A cleaned video replaces the original (02-extract-frames.sh), so the
+  # original is only downloaded when there is none.
+  if { [ -s "$ROOT/transects/$key-clean.mp4" ] || "$HERE/01-fetch-transect.sh" "$key"; } && reconstruct && "$HERE/04-export-web.sh" "$key" &&
     register "$key"; then
     echo "=== $key done ($(date '+%H:%M'))"
+    # A cleaned video is kept: it is the result of a review, not a download.
     rm -rf "$ROOT/transects/$key.mp4" "$ROOT/frames/$key" "$ROOT/frames/$key.json" "$npz"
   else
     # The video, frames, sidecar and .npz stay (~3-5 GB), so a fixed export
