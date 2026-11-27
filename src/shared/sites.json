@@ -76,5 +76,23 @@
     "name": "Mahukona, site 7 — transect 2",
     "lat": 20.18405,
     "lon": -155.901517
+  },
+  {
+    "transectKey": "stetson-transect2",
+    "name": "Stetson Bank, Gulf of Mexico — transect 2",
+    "lat": 28.166063,
+    "lon": -94.297603
+  },
+  {
+    "transectKey": "stetson-transect3a",
+    "name": "Stetson Bank, Gulf of Mexico — transect 3 (first part)",
+    "lat": 28.16595,
+    "lon": -94.29635
+  },
+  {
+    "transectKey": "stetson-transect3b",
+    "name": "Stetson Bank, Gulf of Mexico — transect 3 (second part)",
+    "lat": 28.16595,
+    "lon": -94.29635
   }
 ]

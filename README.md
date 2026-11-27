@@ -25,7 +25,8 @@ dive it.
   transect on the landing page.
 
 The first sites are 12 coral reef transects off the west coast of Hawaii Island,
-from a public NOAA dataset ([accession 0172858](https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.nodc:0172858)).
+from a public NOAA dataset ([accession 0172858](https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.nodc:0172858)),
+and 3 from Stetson Bank in the Gulf of Mexico ([accession 0239376](https://www.ncei.noaa.gov/archive/accession/0239376)).
 
 Live at [scannerroom.louisplace.com](https://scannerroom.louisplace.com).
 
