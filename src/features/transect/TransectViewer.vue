@@ -178,8 +178,23 @@ const infoRows = computed(() => {
           : `${formatTime(covered)}, whole video`,
     ],
     ['Frames', `${r.frames} at ${+r.fps.toFixed(2)} fps`],
-    ['Points', `${(r.points / 1e6).toFixed(2)} M`],
-    ['Voxel', `${(r.voxelOfMedianDepth * 100).toFixed(1)} % of viewing distance`],
+    // Older exports have no detail tiles: the overview is all there is.
+    ...(r.detailPoints && r.detailVoxel && r.detailPoints > r.points
+      ? [
+          [
+            'Points',
+            `${(r.points / 1e6).toFixed(2)} M overview, ${(r.detailPoints / 1e6).toFixed(1)} M up close`,
+          ],
+          [
+            'Voxel',
+            `${(r.voxelOfMedianDepth * 100).toFixed(1)} % of viewing distance, ` +
+              `${((r.detailVoxel / r.medianDepth) * 100).toFixed(2)} % up close`,
+          ],
+        ]
+      : [
+          ['Points', `${(r.points / 1e6).toFixed(2)} M`],
+          ['Voxel', `${(r.voxelOfMedianDepth * 100).toFixed(1)} % of viewing distance`],
+        ]),
     ['Confidence', `≥ ${r.confidence}, +${percent(r.recoveredPixels)} multi-view`],
     ['Pixels kept', percent(r.keptPixels)],
     ['Depth rescale', `×${r.depthScale[0]}–${r.depthScale[1]} (p10–p90)`],

@@ -58,6 +58,9 @@ fi
 ENCODED="$(printf '%s' "$REMOTE" | sed 's/ /%20/g')"
 
 echo "Downloading $KEY ..."
-curl -fL --retry 3 --progress-bar -o "$DEST.part" "$BASE/$ENCODED"
+# Resume the partial file and retry on any error: the archive server sometimes
+# resets or stalls the connection partway through these 1 GB files; a transfer
+# under 1 KB/s for a minute counts as stalled.
+curl -fL -C - --retry 10 --retry-all-errors --speed-limit 1024 --speed-time 60 --progress-bar -o "$DEST.part" "$BASE/$ENCODED"
 mv "$DEST.part" "$DEST"
 echo "Saved to $DEST"

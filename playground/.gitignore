@@ -1,5 +1,6 @@
 # Heavy pipeline artifacts: reproducible from the scripts, never committed.
 transects/*.mp4
+transects/*.part
 frames/
 reconstruction/
 out/
@@ -7,3 +8,11 @@ natural-earth/
 
 # Third-party code and its Python env (LingBot-Map MLX port, weights included).
 vendor/
+
+# Experiment images (renders, comparison sheets): kept locally, too heavy for
+# the repository. Tables and metrics stay versioned.
+experiments/**/*.jpg
+experiments/**/*.png
+
+# Python bytecode
+__pycache__/

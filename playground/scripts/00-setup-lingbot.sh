@@ -34,7 +34,9 @@ done
 if [ ! -x "$VENDOR/.venv-lingbot/bin/python" ]; then
   "$PYTHON" -m venv "$VENDOR/.venv-lingbot"
 fi
-# opencv, scipy and trimesh come with the port; export-web.py relies on them.
-"$VENDOR/.venv-lingbot/bin/pip" install --quiet -e "$VENDOR/mlx_lingbot-map" huggingface_hub
+# opencv, scipy and trimesh come with the port; export-web.py relies on them,
+# and on torch + transformers for its fine depth (Depth Anything V2 Small, MPS).
+"$VENDOR/.venv-lingbot/bin/pip" install --quiet -e "$VENDOR/mlx_lingbot-map" huggingface_hub \
+  torch==2.14.1 transformers==5.20.2
 
 echo "LingBot-Map ready: $VENDOR/mlx_lingbot-map"

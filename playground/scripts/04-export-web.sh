@@ -4,9 +4,10 @@
 # web-sized copy of the video, shown in a small window during the traveling.
 #
 # Usage: ./04-export-web.sh [transect-key]
-# Env:   CONF (default 1.05, depth-confidence threshold), VOXEL (default 0.01, fraction of median depth),
+# Env:   CONF (default 1.05, depth-confidence threshold),
 #        PATH_SMOOTH / HEADING_SMOOTH (default 1.0 / 1.5, seconds of video),
-#        MAX_POINTS (default 2000000, web budget of the cloud)
+#        MAX_POINTS (default 2000000, web budget of the overview cloud),
+#        DETAIL_POINTS_PER_SECOND (default 250000, detail tiles budget per second of video)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -21,10 +22,20 @@ PY="$ROOT/vendor/.venv-lingbot/bin/python"
 [ -s "$VIDEO" ] || { echo "Missing $VIDEO — run 01-fetch-transect.sh first." >&2; exit 1; }
 [ -s "$META" ] || { echo "Missing $META — rerun 02-extract-frames.sh." >&2; exit 1; }
 
-"$PY" -I "$ROOT/scripts/export-web.py" "$SRC" "$META" "$DEST" \
-  --conf "${CONF:-1.05}" --voxel "${VOXEL:-0.01}" \
+# The source frames give the cloud its fine depth and full-resolution colours.
+FRAMES="$ROOT/frames/$KEY"
+if [ -n "$(ls "$FRAMES"/*.jpg 2>/dev/null | head -1)" ]; then
+  FRAMES_ARG=(--frames "$FRAMES")
+else
+  echo "No frames in $FRAMES: exporting at the model's resolution (rerun 02-extract-frames.sh for full detail)." >&2
+  FRAMES_ARG=()
+fi
+
+# ${a[@]+...} expands an empty array to nothing; plain "${a[@]}" trips set -u on bash < 4.4.
+"$PY" -I "$ROOT/scripts/export-web.py" "$SRC" "$META" "$DEST" ${FRAMES_ARG[@]+"${FRAMES_ARG[@]}"} \
+  --conf "${CONF:-1.05}" \
   --path-smooth "${PATH_SMOOTH:-1.0}" --heading-smooth "${HEADING_SMOOTH:-1.5}" \
-  --max-points "${MAX_POINTS:-2000000}"
+  --max-points "${MAX_POINTS:-2000000}" --detail-points-per-second "${DETAIL_POINTS_PER_SECOND:-250000}"
 
 # Same timeline as the source (path.json times stay valid), small and muted:
 # it only plays in a thumbnail. faststart lets the browser seek before the end
