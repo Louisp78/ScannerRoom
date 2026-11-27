@@ -1,46 +1,3 @@
-<script setup lang="ts">
-// Sign-in page (US-4.1): hands the browser over to ORCID or Google through the
-// API, which brings it back to `redirect` once signed in.
-import { computed, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
-import { getProviders, signInUrl, type Provider } from '@/api'
-
-const route = useRoute()
-
-/** Same-site paths only; the API applies the same rule. */
-const returnTo = computed(() => {
-  const r = route.query.redirect
-  return typeof r === 'string' && /^\/(?![/\\])/.test(r) ? r : '/explore'
-})
-
-const ERRORS: Record<string, string> = {
-  cancelled: 'Sign-in was cancelled or refused by the provider.',
-  'linked-elsewhere': 'This login is already linked to another ScannerRoom account.',
-}
-const errorMessage = computed(() => {
-  const e = route.query.error
-  return typeof e === 'string' ? (ERRORS[e] ?? 'Sign-in failed, please try again.') : undefined
-})
-
-const PROVIDERS: Record<Provider, { label: string; hint: string }> = {
-  orcid: {
-    label: 'Sign in with ORCID',
-    hint: 'Recommended for researchers: your iD credits your transects.',
-  },
-  google: { label: 'Sign in with Google', hint: 'For everyone else.' },
-}
-
-const providers = ref<Provider[]>()
-const loadError = ref(false)
-onMounted(async () => {
-  try {
-    providers.value = await getProviders()
-  } catch {
-    loadError.value = true
-  }
-})
-</script>
-
 <template>
   <div class="relative isolate grid min-h-svh place-items-center px-4 py-16">
     <div
@@ -109,3 +66,46 @@ onMounted(async () => {
     </main>
   </div>
 </template>
+
+<script setup lang="ts">
+// Sign-in page (US-4.1): hands the browser over to ORCID or Google through the
+// API, which brings it back to `redirect` once signed in.
+import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
+import { getProviders, signInUrl, type Provider } from '@/shared/api'
+
+const route = useRoute()
+
+/** Same-site paths only; the API applies the same rule. */
+const returnTo = computed(() => {
+  const r = route.query.redirect
+  return typeof r === 'string' && /^\/(?![/\\])/.test(r) ? r : '/explore'
+})
+
+const ERRORS: Record<string, string> = {
+  cancelled: 'Sign-in was cancelled or refused by the provider.',
+  'linked-elsewhere': 'This login is already linked to another ScannerRoom account.',
+}
+const errorMessage = computed(() => {
+  const e = route.query.error
+  return typeof e === 'string' ? (ERRORS[e] ?? 'Sign-in failed, please try again.') : undefined
+})
+
+const PROVIDERS: Record<Provider, { label: string; hint: string }> = {
+  orcid: {
+    label: 'Sign in with ORCID',
+    hint: 'Recommended for researchers: your iD credits your transects.',
+  },
+  google: { label: 'Sign in with Google', hint: 'For everyone else.' },
+}
+
+const providers = ref<Provider[]>()
+const loadError = ref(false)
+onMounted(async () => {
+  try {
+    providers.value = await getProviders()
+  } catch {
+    loadError.value = true
+  }
+})
+</script>

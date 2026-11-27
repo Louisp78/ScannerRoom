@@ -13,7 +13,7 @@ import type {
   TransectDetails,
   UserSummary,
   UsersResponse,
-} from '../api/src/contract'
+} from '../../api/src/contract'
 
 export type { OwnTransect, Provider, SessionUser, TransectDetails, UserSummary }
 

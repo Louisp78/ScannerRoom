@@ -1,9 +1,139 @@
+<template>
+  <div class="relative h-full w-full overflow-hidden">
+    <div ref="host" class="absolute inset-0" />
+
+    <!-- Top-left cluster: page-provided actions (e.g. back to the atlas), then the site badge. -->
+    <div class="absolute top-4 left-4 flex max-w-[calc(100%-2rem)] items-stretch gap-2">
+      <slot name="actions" />
+      <div
+        v-if="site"
+        class="pointer-events-none flex min-w-0 flex-col justify-center gap-1 rounded-xl border border-foam/10 bg-abyss/70 px-3 py-2 backdrop-blur"
+      >
+        <span class="truncate text-sm font-semibold">{{ site.name }}</span>
+        <span class="font-mono text-[11px] text-scanner">{{ formatLatLon(site) }}</span>
+        <span v-if="contributor" class="truncate text-[11px] text-foam/70">
+          by {{ contributor.displayName }}
+          <template v-if="contributor.orcidId">
+            ·
+            <a
+              :href="`https://orcid.org/${contributor.orcidId}`"
+              target="_blank"
+              rel="noopener"
+              class="pointer-events-auto font-mono text-scanner hover:underline"
+              :aria-label="`ORCID profile of ${contributor.displayName}`"
+            >
+              ORCID {{ contributor.orcidId }}
+            </a>
+          </template>
+        </span>
+        <ContributorPicker
+          v-if="canReassign"
+          :transect-key="site.transectKey"
+          :contributor="contributor"
+          @changed="contributor = $event"
+        />
+      </div>
+    </div>
+
+    <p v-if="error" class="absolute inset-x-0 top-1/2 text-center text-foam" role="alert">
+      Could not load the transect: {{ error }}
+    </p>
+    <p v-else-if="!range" class="absolute inset-x-0 top-1/2 text-center text-scanner">
+      Loading point cloud… {{ Math.round(progress * 100) }}%
+    </p>
+
+    <div class="absolute top-4 right-4 flex w-48 flex-col gap-3 sm:w-72">
+      <!-- How the 3D was built: too dense for a phone screen or the landing showcase. -->
+      <section
+        v-if="infoRows.length && !embedded"
+        class="hidden rounded-lg bg-abyss/80 px-3 py-2 text-xs text-foam backdrop-blur md:block"
+        aria-label="3D reconstruction parameters"
+      >
+        <h2 class="mb-1 font-semibold text-scanner">3D reconstruction</h2>
+        <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+          <template v-for="[label, value] in infoRows" :key="label">
+            <dt class="text-foam/60">{{ label }}</dt>
+            <dd class="tabular-nums">{{ value }}</dd>
+          </template>
+        </dl>
+      </section>
+
+      <!-- Source video, in sync with the camera while traveling along the path. -->
+      <video
+        v-if="videoUrl && !videoFailed"
+        v-show="playback !== 'stopped'"
+        ref="video"
+        :src="videoUrl"
+        muted
+        playsinline
+        preload="auto"
+        aria-label="Transect video"
+        class="w-full rounded-lg border border-foam/20 shadow-lg"
+        @error="videoFailed = true"
+      />
+    </div>
+
+    <div
+      v-if="range"
+      class="absolute inset-x-4 bottom-4 flex items-center gap-3 rounded-lg bg-abyss/80 px-4 py-3 text-sm text-foam backdrop-blur sm:inset-x-auto sm:left-1/2 sm:w-[36rem] sm:-translate-x-1/2"
+    >
+      <button
+        v-if="playback !== 'playing'"
+        type="button"
+        class="grid size-8 shrink-0 place-items-center rounded-full bg-scanner text-abyss hover:bg-foam"
+        aria-label="Play: follow the diver"
+        @click="play"
+      >
+        <svg viewBox="0 0 16 16" class="ml-0.5 size-3.5" fill="currentColor" aria-hidden="true">
+          <path d="M3 1.5v13l11-6.5z" />
+        </svg>
+      </button>
+      <button
+        v-else
+        type="button"
+        class="grid size-8 shrink-0 place-items-center rounded-full bg-scanner text-abyss hover:bg-foam"
+        aria-label="Pause"
+        @click="pause"
+      >
+        <svg viewBox="0 0 16 16" class="size-3.5" fill="currentColor" aria-hidden="true">
+          <path d="M3 1.5h3.5v13H3zM9.5 1.5H13v13H9.5z" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        class="grid size-8 shrink-0 place-items-center rounded-full border border-foam/40 hover:border-scanner hover:text-scanner disabled:opacity-40"
+        aria-label="Stop: back to the overview"
+        :disabled="playback === 'stopped'"
+        @click="stop"
+      >
+        <svg viewBox="0 0 16 16" class="size-3" fill="currentColor" aria-hidden="true">
+          <rect x="2" y="2" width="12" height="12" rx="1" />
+        </svg>
+      </button>
+
+      <label class="flex flex-1 items-center gap-3">
+        <span class="sr-only">Video time</span>
+        <span class="w-10 tabular-nums">{{ formatTime(time) }}</span>
+        <input
+          v-model.number="time"
+          type="range"
+          :min="range[0]"
+          :max="range[1]"
+          step="0.1"
+          class="flex-1 accent-scanner"
+        />
+        <span class="w-10 text-right tabular-nums text-foam/60">{{ formatTime(range[1]) }}</span>
+      </label>
+    </div>
+  </div>
+</template>
+
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
-import { getMe, getTransect, type TransectDetails } from '@/api'
+import { getMe, getTransect, type TransectDetails } from '@/shared/api'
 import ContributorPicker from './ContributorPicker.vue'
-import { formatLatLon, type Site } from '@/sites'
-import { formatTime, type ReconstructionInfo, TransectScene } from '@/viewer/transectScene'
+import { formatLatLon, type Site } from '@/shared/sites'
+import { formatTime, type ReconstructionInfo, TransectScene } from './transectScene'
 
 const props = defineProps<{
   /** Folder under public/ holding cloud.ply and path.json. */
@@ -160,133 +290,3 @@ onBeforeUnmount(() => {
   scene?.dispose()
 })
 </script>
-
-<template>
-  <div class="relative h-full w-full overflow-hidden">
-    <div ref="host" class="absolute inset-0" />
-
-    <!-- Top-left cluster: page-provided actions (e.g. back to the atlas), then the site badge. -->
-    <div class="absolute top-4 left-4 flex max-w-[calc(100%-2rem)] items-stretch gap-2">
-      <slot name="actions" />
-      <div
-        v-if="site"
-        class="pointer-events-none flex min-w-0 flex-col justify-center gap-1 rounded-xl border border-foam/10 bg-abyss/70 px-3 py-2 backdrop-blur"
-      >
-        <span class="truncate text-sm font-semibold">{{ site.name }}</span>
-        <span class="font-mono text-[11px] text-scanner">{{ formatLatLon(site) }}</span>
-        <span v-if="contributor" class="truncate text-[11px] text-foam/70">
-          by {{ contributor.displayName }}
-          <template v-if="contributor.orcidId">
-            ·
-            <a
-              :href="`https://orcid.org/${contributor.orcidId}`"
-              target="_blank"
-              rel="noopener"
-              class="pointer-events-auto font-mono text-scanner hover:underline"
-              :aria-label="`ORCID profile of ${contributor.displayName}`"
-            >
-              ORCID {{ contributor.orcidId }}
-            </a>
-          </template>
-        </span>
-        <ContributorPicker
-          v-if="canReassign"
-          :transect-key="site.transectKey"
-          :contributor="contributor"
-          @changed="contributor = $event"
-        />
-      </div>
-    </div>
-
-    <p v-if="error" class="absolute inset-x-0 top-1/2 text-center text-foam" role="alert">
-      Could not load the transect: {{ error }}
-    </p>
-    <p v-else-if="!range" class="absolute inset-x-0 top-1/2 text-center text-scanner">
-      Loading point cloud… {{ Math.round(progress * 100) }}%
-    </p>
-
-    <div class="absolute top-4 right-4 flex w-48 flex-col gap-3 sm:w-72">
-      <!-- How the 3D was built: too dense for a phone screen or the landing showcase. -->
-      <section
-        v-if="infoRows.length && !embedded"
-        class="hidden rounded-lg bg-abyss/80 px-3 py-2 text-xs text-foam backdrop-blur md:block"
-        aria-label="3D reconstruction parameters"
-      >
-        <h2 class="mb-1 font-semibold text-scanner">3D reconstruction</h2>
-        <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
-          <template v-for="[label, value] in infoRows" :key="label">
-            <dt class="text-foam/60">{{ label }}</dt>
-            <dd class="tabular-nums">{{ value }}</dd>
-          </template>
-        </dl>
-      </section>
-
-      <!-- Source video, in sync with the camera while traveling along the path. -->
-      <video
-        v-if="videoUrl && !videoFailed"
-        v-show="playback !== 'stopped'"
-        ref="video"
-        :src="videoUrl"
-        muted
-        playsinline
-        preload="auto"
-        aria-label="Transect video"
-        class="w-full rounded-lg border border-foam/20 shadow-lg"
-        @error="videoFailed = true"
-      />
-    </div>
-
-    <div
-      v-if="range"
-      class="absolute inset-x-4 bottom-4 flex items-center gap-3 rounded-lg bg-abyss/80 px-4 py-3 text-sm text-foam backdrop-blur sm:inset-x-auto sm:left-1/2 sm:w-[36rem] sm:-translate-x-1/2"
-    >
-      <button
-        v-if="playback !== 'playing'"
-        type="button"
-        class="grid size-8 shrink-0 place-items-center rounded-full bg-scanner text-abyss hover:bg-foam"
-        aria-label="Play: follow the diver"
-        @click="play"
-      >
-        <svg viewBox="0 0 16 16" class="ml-0.5 size-3.5" fill="currentColor" aria-hidden="true">
-          <path d="M3 1.5v13l11-6.5z" />
-        </svg>
-      </button>
-      <button
-        v-else
-        type="button"
-        class="grid size-8 shrink-0 place-items-center rounded-full bg-scanner text-abyss hover:bg-foam"
-        aria-label="Pause"
-        @click="pause"
-      >
-        <svg viewBox="0 0 16 16" class="size-3.5" fill="currentColor" aria-hidden="true">
-          <path d="M3 1.5h3.5v13H3zM9.5 1.5H13v13H9.5z" />
-        </svg>
-      </button>
-      <button
-        type="button"
-        class="grid size-8 shrink-0 place-items-center rounded-full border border-foam/40 hover:border-scanner hover:text-scanner disabled:opacity-40"
-        aria-label="Stop: back to the overview"
-        :disabled="playback === 'stopped'"
-        @click="stop"
-      >
-        <svg viewBox="0 0 16 16" class="size-3" fill="currentColor" aria-hidden="true">
-          <rect x="2" y="2" width="12" height="12" rx="1" />
-        </svg>
-      </button>
-
-      <label class="flex flex-1 items-center gap-3">
-        <span class="sr-only">Video time</span>
-        <span class="w-10 tabular-nums">{{ formatTime(time) }}</span>
-        <input
-          v-model.number="time"
-          type="range"
-          :min="range[0]"
-          :max="range[1]"
-          step="0.1"
-          class="flex-1 accent-scanner"
-        />
-        <span class="w-10 text-right tabular-nums text-foam/60">{{ formatTime(range[1]) }}</span>
-      </label>
-    </div>
-  </div>
-</template>

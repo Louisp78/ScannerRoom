@@ -8,7 +8,7 @@
 #   set defaults to <transect-key>-0s-20s (a folder of out/experiments/).
 #
 # For each run: public/transects/<key>-exp-<run>/ (cloud, path, video copied
-# from the transect's own web folder), a map point in src/sites.json next to
+# from the transect's own web folder), a map point in src/shared/sites.json next to
 # the transect's site (offset ~30 m per run so every point stays clickable)
 # and a showcase row in the local database, so the viewer opens it without
 # signing in. Local comparison only: the folders are ignored by git, and the
@@ -21,13 +21,13 @@ NODE="${NODE:-$HOME/.nvm/versions/node/v$(cat "$ROOT/.nvmrc" | tr -d v)/bin/node
 if [ "${1:-}" = "--remove" ]; then
   KEY="$2"
   rm -rf "$ROOT/public/transects/$KEY-exp-"*
-  python3 - "$ROOT/src/sites.json" "$KEY-exp-" <<'PY'
+  python3 - "$ROOT/src/shared/sites.json" "$KEY-exp-" <<'PY'
 import json, sys
 p, prefix = sys.argv[1:]
 sites = [s for s in json.load(open(p)) if not s["transectKey"].startswith(prefix)]
 open(p, "w").write(json.dumps(sites, indent=2, ensure_ascii=False) + "\n")
 PY
-  echo "Removed $KEY-exp-* from public/transects and src/sites.json (database rows are kept, harmless)."
+  echo "Removed $KEY-exp-* from public/transects and src/shared/sites.json (database rows are kept, harmless)."
   exit 0
 fi
 
@@ -60,7 +60,7 @@ done
 
 [ ${#KEYS[@]} -gt 0 ] || { echo "No exported run (web/cloud.ply) in $SET." >&2; exit 1; }
 
-python3 - "$ROOT/src/sites.json" "$KEY" "${KEYS[@]}" <<'PY'
+python3 - "$ROOT/src/shared/sites.json" "$KEY" "${KEYS[@]}" <<'PY'
 import json, sys
 p, base, *keys = sys.argv[1:]
 sites = json.load(open(p))
