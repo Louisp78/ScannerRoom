@@ -14,13 +14,15 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 KEY="${1:-site3-transect2-south-return}"
 SRC="$ROOT/out/lingbot/$KEY.npz"
 META="$ROOT/frames/$KEY.json"
-VIDEO="$ROOT/transects/$KEY.mp4"
 DEST="$ROOT/../public/transects/$KEY"
 PY="$ROOT/vendor/.venv-lingbot/bin/python"
 
 [ -s "$SRC" ] || { echo "Missing $SRC — run 03-reconstruct.sh first." >&2; exit 1; }
-[ -s "$VIDEO" ] || { echo "Missing $VIDEO — run 01-fetch-transect.sh first." >&2; exit 1; }
 [ -s "$META" ] || { echo "Missing $META — rerun 02-extract-frames.sh." >&2; exit 1; }
+# The video the frames were taken from (the cleaned copy when there is one):
+# path.json times follow its timeline. Older sidecars only name the original.
+VIDEO="$ROOT/transects/$(python3 -I -c 'import json, sys; m = json.load(open(sys.argv[1])); print(m.get("source", m["video"]))' "$META")"
+[ -s "$VIDEO" ] || { echo "Missing $VIDEO — run 01-fetch-transect.sh first." >&2; exit 1; }
 
 # The source frames give the cloud its fine depth and full-resolution colours.
 FRAMES="$ROOT/frames/$KEY"

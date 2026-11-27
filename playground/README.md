@@ -27,6 +27,13 @@ for clear water and full swims (10 to 12 min each, ~100 m and more along the
 tape). Site 5 is left out: murky, and its three transects sit in a single 20 min
 file. Videos are 1440×1080 at 30 fps, about 1.5 MB per second.
 
+A second catalog source, [NOAA NCEI, accession 0239376](https://www.ncei.noaa.gov/archive/accession/0239376)
+(Stetson Bank, Flower Garden Banks National Marine Sanctuary, Gulf of Mexico,
+July 2018), adds 3 files from permanent 100 m transects, filmed at 1440×1080
+with the camera held at a constant height above the line. Its readme gives the
+start and end point of each transect. The water is greener and less clear than
+in Hawaii.
+
 ## Pipeline
 
 ```bash
@@ -44,6 +51,12 @@ and deletes the transect's intermediates (video, frames, `.npz`: 3 to 4 GB)
 before starting the next. Strictly one at a time: a full-length reconstruction
 uses most of the RAM of a 16-18 GB Mac. Count ~45 min per 12 min transect on an
 M3 Pro.
+
+A cleaned video, `transects/<key>-clean.mp4` (divers blocking the reef cut out
+by the `clean-transect-video` skill), replaces the original wherever it exists:
+frames are extracted from it, the viewer's video and timestamps follow its
+timeline, and the build skips the download and keeps it afterwards. Measured
+gains are in [the experiment results](experiments/results/clean-transect-video.md).
 
 Each step writes to its own folder (`transects/`, `frames/`, `out/`), all ignored
 by git: these artefacts are heavy and can be reproduced from the scripts. Any
